@@ -6,5 +6,5 @@ class HandoverManifest(BaseModel):
     facts: list[str] = []
     pending_questions: list[str] = []
     risk_flags: list[str] = []
-    evidence_level: str = "C"  # A: guideline, B: consensus, C: LLM-generated
+    evidence_level: str = "C"  # A: guideline指南, B: consensus共识, C: LLM-generated
     context: dict[str, Any] = {}
