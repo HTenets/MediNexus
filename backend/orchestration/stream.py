@@ -1,0 +1,7 @@
+"""Streaming event handling for SSE."""
+
+import json
+
+
+def format_sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
