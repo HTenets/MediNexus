@@ -298,41 +298,41 @@ MediNexus/
 
 ## 逐周开发计划
 
-### 第 1 周: 项目基础设施
+### ✅ 第 1 周: 项目基础设施 — 已完成
 
 **目标**: 能跑起来的开发环境 + 数据模型 + LLM 联通
 
 | 日期 | 后端任务 | 前端任务 |
 |------|---------|---------|
-| Day 1 | 初始化项目仓库, pyproject.toml, Docker Compose 骨架 | 初始化 Next.js 项目, Tailwind 配置 |
-| Day 2 | PostgreSQL 模型定义 (patient, consultation, prescription, medical_history) | 基础布局组件 (Sidebar, Header) |
-| Day 3 | FastAPI 基础框架 + config.py + database.py | API 客户端封装 (lib/api.ts) |
-| Day 4 | LLM 抽象层 (client.py + OpenAI/Anthropic/Ollama providers) | 首页框架 (Layout + 路由) |
-| Day 5 | Redis 连接 + 基础缓存 | 类型定义 + API schema 对齐 |
-| Day 6 | Alembic 迁移 + init_db.py 脚本 | 主题/UI 组件库 (shadcn/ui) |
-| Day 7 | Docker Compose 整合 (PostgreSQL + Redis + Qdrant) | 端到端验证: 后端健康检查通过 |
+| Day 1 | ✅ 初始化项目仓库, pyproject.toml, Docker Compose 骨架 | ✅ 初始化 Next.js 项目, Tailwind 配置 |
+| Day 2 | ✅ PostgreSQL 模型定义 (patient, consultation, prescription, medical_history) | ✅ 基础布局组件 (Sidebar, Header) |
+| Day 3 | ✅ FastAPI 基础框架 + config.py + database.py | ✅ API 客户端封装 (lib/api.ts) |
+| Day 4 | ✅ LLM 抽象层 (client.py + OpenAI/Anthropic/Ollama providers) | ✅ 首页框架 (Layout + 路由) |
+| Day 5 | ✅ Redis 连接 + 基础缓存 | ✅ 类型定义 + API schema 对齐 |
+| Day 6 | ✅ Alembic 迁移 + init_db.py 脚本 | ✅ 主题/UI 组件库 (shadcn/ui) |
+| Day 7 | ✅ Docker Compose 整合 (PostgreSQL + Redis + Qdrant) | ✅ 端到端验证: 后端健康检查通过 |
 
-**里程碑**: `docker-compose up` 后所有服务启动成功, FastAPI 健康检查返回 200, LLM 调用通过
+**里程碑**: ✅ `docker-compose up` 后所有服务启动成功, FastAPI 健康检查返回 200, LLM 调用通过
 
 **可扩展预留**: 数据模型中的 followup 表已创建 (空表), medical_history 支持多种病史类型 (JSONB)
 
 ---
 
-### 第 2 周: Agent 框架 + 导诊 Agent
+### ✅ 第 2 周: Agent 框架 + 导诊 Agent — 已完成
 
 **目标**: Agent 基类 + LangGraph 图定义 + Triage Agent 可对话
 
 | 日期 | 后端任务 | 前端任务 |
 |------|---------|---------|
-| Day 1 | BaseAgent 抽象类 + AgentRegistry | — |
-| Day 2 | LangGraph 图定义: state.py + graph.py (基础节点链路) | — |
-| Day 3 | Triage Agent: agent.py + prompt.py | WebSocket 连接封装 |
-| Day 4 | Supervisor Agent: 路由逻辑 + 会话管理 | 对话 UI 组件 (基础消息列表) |
-| Day 5 | Agent 流式输出: stream.py (SSE 事件格式设计) | 流式消息渲染 |
-| Day 6 | API routes: POST /consult + WebSocket /ws/{session_id} | 对话输入框 + 发送逻辑 |
-| Day 7 | 集成测试: 用户输入 → Triage Agent → 输出 | 端到端对话演示 |
+| Day 1 | ✅ BaseAgent 抽象类 + AgentRegistry | — |
+| Day 2 | ✅ LangGraph 图定义: state.py + graph.py (基础节点链路) | — |
+| Day 3 | ✅ Triage Agent: agent.py + prompt.py (含中英文关键词+LLM双模式) | ✅ WebSocket 连接封装 (含自动重连) |
+| Day 4 | ✅ Supervisor Agent: 路由逻辑 + 会话管理 | ✅ 对话 UI 组件 (ChatMessage, ChatInput, ChatContainer) |
+| Day 5 | ✅ Agent 流式输出: stream.py (StreamManager + SSE/WebSocket 事件格式) | ✅ 流式消息渲染 (逐字输出 + 动画光标) |
+| Day 6 | ✅ API routes: POST /consult + WebSocket /ws/{session_id} | ✅ 对话输入框 + 发送逻辑 (Enter/Shift+Enter) |
+| Day 7 | ✅ 集成测试: 12 个测试用例覆盖 Triage/Supervisor/完整流程 | ✅ 端到端对话演示 (首页→问诊→流式对话) |
 
-**里程碑**: 用户能输入「我头痛两天了」, Triage Agent 返回分诊结果, 前端流式渲染
+**里程碑**: ✅ 用户能输入「我头痛两天了」, Triage Agent 返回分诊结果, 前端流式渲染
 
 **可扩展预留**: BaseAgent 预留 `tool_calling` 和 `hook` 接口, 后期可通过 Plugin 注入
 

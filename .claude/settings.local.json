@@ -24,7 +24,13 @@
       "Bash(netstat -ano)",
       "Bash(powershell -Command \"Get-Process -Id 5852 -ErrorAction SilentlyContinue | Stop-Process -Force\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(f' {m} {p}'\\) for p,i in d['paths'].items\\(\\) for m in i]\")",
-      "Bash(powershell -Command \"Get-Process -Id \\(Get-NetTCPConnection -LocalPort 8000\\).OwningProcess -ErrorAction SilentlyContinue | Stop-Process -Force\")"
+      "Bash(powershell -Command \"Get-Process -Id \\(Get-NetTCPConnection -LocalPort 8000\\).OwningProcess -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "PowerShell(Get-ChildItem -Recurse -Depth 2 E:\\\\Program\\\\MediNexus\\\\backend | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"E:\\\\Program\\\\MediNexus\\\\\", \"\"\\) })",
+      "PowerShell(Get-ChildItem -Recurse -Depth 2 E:\\\\Program\\\\MediNexus\\\\frontend | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"E:\\\\Program\\\\MediNexus\\\\\", \"\"\\) })",
+      "PowerShell(Get-ChildItem -Path \"E:\\\\Program\\\\MediNexus\\\\backend\" -Filter \"__init__.py\" -Recurse | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"E:\\\\Program\\\\MediNexus\\\\backend\\\\\", \"\"\\) })",
+      "Bash(python -m pytest ../tests/integration/test_agent_communication.py -v --no-header)",
+      "Bash(PYTHONPATH=\"E:/Program/MediNexus/backend\" python *)",
+      "PowerShell(Get-ChildItem -Recurse -Depth 2 -Directory E:\\\\Program\\\\MediNexus\\\\ | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"E:\\\\Program\\\\MediNexus\\\\\", \"\"\\) })"
     ]
   }
 }

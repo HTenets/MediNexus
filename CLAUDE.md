@@ -113,3 +113,34 @@ Settings loaded via `pydantic-settings` from environment variables prefixed with
 - Review agent has `checkers/` and `rules/` submodules
 - Database models use SQLAlchemy 2.0+ async style with asyncpg
 - All agent-to-agent communication uses `HandoverManifest` Pydantic model
+
+## AI Code Structure (AI 可读代码结构)
+
+This project maintains AI-readable code structure documentation for long-term AI-assisted development.
+
+### `.claude/codebase/` — Code Graph (代码图谱)
+
+The canonical reference for AI to understand the codebase before making changes:
+
+| File | Purpose |
+|------|---------|
+| [MODULE_MAP.md](.claude/codebase/MODULE_MAP.md) | Complete module inventory — responsibilities, interfaces, dependencies, status |
+| [API_SURFACE.md](.claude/codebase/API_SURFACE.md) | REST + WebSocket API specification |
+| [DATA_FLOW.md](.claude/codebase/DATA_FLOW.md) | Data flow diagrams (REST / WebSocket / Agent Pipeline) |
+| [DEPENDENCY_GRAPH.md](.claude/codebase/DEPENDENCY_GRAPH.md) | Import dependency graph + impact analysis |
+| [BUILD_STATUS.md](.claude/codebase/BUILD_STATUS.md) | Component completion status, known issues, roadmap |
+| [CONVENTIONS.md](.claude/codebase/CONVENTIONS.md) | Code conventions with examples |
+
+### Memory System — Persistent Context (持久化上下文)
+
+Tracks project state, decisions, and priorities across sessions. Located at `~/.claude/projects/E--Program-MediNexus/memory/`.
+
+### Quick Links for AI
+
+| When... | Read this first |
+|---------|-----------------|
+| Adding a new Agent | `CONVENTIONS.md` (template) + `MODULE_MAP.md` (existing agents) |
+| Adding an API endpoint | `API_SURFACE.md` (existing routes) + `CONVENTIONS.md` (routing style) |
+| Modifying the pipeline | `DATA_FLOW.md` (data flow) + `DEPENDENCY_GRAPH.md` (impact analysis) |
+| Understanding priorities | `BUILD_STATUS.md` (what's done vs TODO) |
+| Making an architecture decision | `architecture-decisions.md` (existing ADRs) |

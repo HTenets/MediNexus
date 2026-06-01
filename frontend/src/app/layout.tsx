@@ -1,7 +1,17 @@
+"use client";
+
+import Link from "next/link";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <head>
+        <title>MediNexus / 医枢 — 智能医疗诊断平台</title>
+        <meta name="description" content="开源多智能体医疗诊断平台" />
+      </head>
+      <body className="min-h-screen bg-gray-50 antialiased">
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,7 +1,7 @@
 [project]
 name = "medinexus"
 version = "0.1.0"
-description = Mde / 医枢 — 开源多智能体医疗诊断平台"
+description = "MediNexus / 医枢 — 开源多智能体医疗诊断平台"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
@@ -21,3 +21,22 @@ dependencies = [
     "python-jose[cryptography]>=3.3",
     "passlib[bcrypt]>=1.7",
 ]
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+include = ["agents*", "app*", "orchestration*", "guardrails*", "knowledge*", "llm*", "memory*", "workers*"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.25",
+    "httpx>=0.28",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["backend"]
+
+[tool.coverage.run]
+source = ["backend"]
