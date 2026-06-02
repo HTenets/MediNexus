@@ -11,8 +11,8 @@
 ```
 第1周 ████████████████████ 100%  项目基础设施
 第2周 ████████████████████ 100%  Agent 框架 + Triage Agent
-第3周 ████████░░░░░░░░░░░░  40%  Skill 系统 + Doctor Agent  (当前周)
-第4周 ████████░░░░░░░░░░░░  40%  RAG 知识库 + Review Agent   [增强: 参考级需要双语知识库]
+第3周 ████████████████████ 100%  Skill 系统 + Doctor Agent ✅ 已升级为: Ollama 优化 + 中英双语 + 降级路径
+第4周 ░░░░░░░░░░░░░░░░░░░░   0%  RAG 知识库 + Review Agent   [增强: 参考级需要双语知识库]
 第5周 ░░░░░░░░░░░░░░░░░░░░   0%  记忆系统 + 病历管理 + Followup
 第6周 ████████████████████ 100%  前端完整产品 [强度提升: 全页面+响应式+免责声明]
 第7周 ░░░░░░░░░░░░░░░░░░░░   0%  安全 + Guardrail + Coordinator [缩减: 紧急降为演示级]
@@ -136,9 +136,12 @@ tests/
 │   ├── test_consultation_flow.py  — 12 测试用例 (完整就诊流程)
 │   └── test_agent_communication.py — Agent 通信测试
 ├── unit/
-│   ├── agents/     — 待实现
+│   ├── agents/
+│   │   ├── test_skill_system.py   — 19 测试用例 (BaseSkill/Registry/BuiltinSkills)  ✅ 新增 W3
+│   │   └── test_doctor_agent.py   — 16 测试用例 (规则模式/LLM模式/Skill集成)        ✅ 新增 W3
 │   ├── knowledge/  — 待实现
 │   └── memory/     — 待实现
 ```
 
-当前测试重点: TriageAgent 分诊逻辑、Supervisor 路由、Agent 间通信。
+**总测试数: 62** (27 原有 + 35 新增 W3)
+当前测试重点: TriageAgent + DoctorAgent + Skill 系统 + Agent 注册

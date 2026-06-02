@@ -50,21 +50,21 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 
 | 文件 | 职责 | 关键导出 | 状态 |
 |------|------|---------|------|
-| `agent.py` | DoctorAgent (当前为 stub) | `class DoctorAgent(BaseAgent)` | 🏗 |
-| `prompt.py` | 诊断提示词 | — | 📋 |
+| `agent.py` | DoctorAgent (完整: LLM + 规则引擎双模式, Skill 集成, 降级标注) | `class DoctorAgent(BaseAgent)` | ✅ |
+| `prompt.py` | 诊断提示词 (Ollama 优化: 结构化 JSON 输出, 中英双语) | — | ✅ |
 | `diagnosis_flow.py` | 诊断状态机定义 | `DiagnosisState` (INITIAL→HISTORY_TAKING→DIFFERENTIAL→TREATMENT→COMPLETED) | ✅ |
 
 #### Skill 子系统 `backend/agents/doctor/skills/`
 
 | 文件 | 职责 | 状态 |
 |------|------|------|
-| `base.py` | Skill 抽象基类 (system_prompt + knowledge + tools) | 🏗 |
-| `loader.py` | Skill 动态加载器 (支持外部目录加载) | 🏗 |
-| `registry.py` | Skill 注册中心 | 🏗 |
-| `builtin/internal_medicine/skill.py` | 内科 Skill | 📋 |
-| `builtin/dermatology/skill.py` | 皮肤科 Skill | 📋 |
-| `builtin/ent/skill.py` | 耳鼻喉科 Skill | 📋 |
-| `builtin/mental_health/skill.py` | 心理科 Skill (含 PHQ-9/GAD-7) | 📋 |
+| `base.py` | Skill 抽象基类 (system_prompt + knowledge + tools + match_symptoms) | ✅ |
+| `loader.py` | Skill 动态加载器 (内置 4 个 Skill, 外部加载预留 v0.3.0+) | ✅ |
+| `registry.py` | Skill 注册中心 (含 auto_route: 科室匹配→症状评分→首注册降级) | ✅ |
+| `builtin/internal_medicine/skill.py` | 内科 Skill — 呼吸/消化/心血管/内分泌知识 + 中英双语提示词 | ✅ |
+| `builtin/dermatology/skill.py` | 皮肤科 Skill — 湿疹/荨麻疹/痤疮/真菌感染知识 | ✅ |
+| `builtin/ent/skill.py` | 耳鼻喉科 Skill — 耳/鼻/咽喉常见病知识 | ✅ |
+| `builtin/mental_health/skill.py` | 心理科 Skill (含 PHQ-9/GAD-7 计算器 + 自杀危机检测) | ✅ |
 
 ---
 
@@ -72,7 +72,7 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 
 | 文件 | 职责 | 关键导出 | 状态 |
 |------|------|---------|------|
-| `agent.py` | ReviewAgent (当前为 stub) | `class ReviewAgent(BaseAgent)` | 🏗 |
+| `agent.py` | ReviewAgent (当前为 stub, 已注册到 AgentRegistry) | `class ReviewAgent(BaseAgent)` | 🏗 |
 | `prompt.py` | 审查提示词 | — | 📋 |
 | `rules/drug_interaction.py` | 药物相互作用检查规则 | — | 📋 |
 | `rules/contraindication.py` | 禁忌症检查规则 | — | 📋 |

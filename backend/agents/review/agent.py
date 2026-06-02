@@ -1,7 +1,9 @@
 from agents.base import BaseAgent
+from agents.registry import registry
 from app.schemas.agent import HandoverManifest
 
 
+@registry.register
 class ReviewAgent(BaseAgent):
     def __init__(self):
         super().__init__("review")

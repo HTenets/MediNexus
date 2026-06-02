@@ -1,8 +1,10 @@
 from agents.base import BaseAgent
+from agents.registry import registry
 from app.schemas.agent import HandoverManifest
 from datetime import datetime, timedelta
 
 
+@registry.register
 class FollowupAgent(BaseAgent):
     """Manages post-visit follow-up scheduling and monitoring."""
 

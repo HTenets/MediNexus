@@ -1,8 +1,10 @@
 from agents.base import BaseAgent
+from agents.registry import registry
 from app.schemas.agent import HandoverManifest
 from typing import Any
 
 
+@registry.register
 class CoordinatorAgent(BaseAgent):
     """Manages multi-specialty consultations."""
 
