@@ -41,7 +41,9 @@
       "Bash(git commit -m 'docs: 更新 W2-W3 技术栈学习指南 *)",
       "Bash(git reset *)",
       "Bash(git restore *)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "PowerShell(New-Item *)",
+      "Bash(PYTHONPATH=backend python -m pytest tests/unit/knowledge/ tests/unit/agents/test_review_agent.py -v --no-header)"
     ]
   }
 }

@@ -72,8 +72,8 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 
 | 文件 | 职责 | 关键导出 | 状态 |
 |------|------|---------|------|
-| `agent.py` | ReviewAgent (当前为 stub, 已注册到 AgentRegistry) | `class ReviewAgent(BaseAgent)` | 🏗 |
-| `prompt.py` | 审查提示词 | — | 📋 |
+| `agent.py` | ReviewAgent (独立 RAG 验证: 检索知识库对比诊断, 鉴别诊断检查, 证据等级评估) | `class ReviewAgent(BaseAgent)` | ✅ |
+| `prompt.py` | 审查提示词 (8 维审查: 药物相互作用/禁忌症/剂量/过敏/证据/重复/年龄/妊娠) | — | 🏗 |
 | `rules/drug_interaction.py` | 药物相互作用检查规则 | — | 📋 |
 | `rules/contraindication.py` | 禁忌症检查规则 | — | 📋 |
 | `checkers/__init__.py` | 可插拔检查器骨架 | — | 📋 |
@@ -179,12 +179,25 @@ triage → (emergency → 原地紧急处理)
 
 ### 1.12 知识库 `backend/knowledge/`
 
+| 文件 | 职责 | 关键导出 | 依赖 | 状态 |
+|------|------|---------|------|------|
+| `__init__.py` | 包入口, 导出所有知识库组件 | 全部 15+ 公共类/函数 | — | ✅ |
+| `source.py` | 三路知识源定义 (病例/理论/论文) + 置信度配置 + 数据结构 | `SourceType`, `SourceConfig`, `RetrievedChunk`, `FusionResult`, `SOURCE_CONFIGS` | — | ✅ |
+| `chunker.py` | 差异化分块策略 (semantic/hierarchical/recursive) | `SemanticChunker`, `HierarchicalChunker`, `RecursiveChunker`, `get_chunker()` | source.py | ✅ |
+| `vector_store.py` | Qdrant 多集合搜索/创建/upsert | `VectorStore` | qdrant_client | ✅ |
+| `bm25_fallback.py` | BM25 全文搜索降级 (自实现 BM25Okapi + 中文分词) | `BM25Index`, `BM25Fallback` | — | ✅ |
+| `retriever.py` | 多源融合检索: RRF 源内融合 + Z-score 跨源标准化 + 置信度加权 | `MultiSourceRetriever` | source.py, vector_store.py, bm25_fallback.py | ✅ |
+| `rag.py` | RAGQuery 主入口: 三路召回 + 融合 + LLM Context 格式化 | `RAGQuery` | retriever.py, graph/ | ✅ |
+| `graph_rag.py` | GraphRAGQuery (接口与 RAGQuery 同构, 当前包装 RAG + KG) | `GraphRAGQuery` | rag.py | ✅ |
+| `loader.py` | 文档加载 Pipeline + 种子数据 (3 病例/3 理论/2 论文) | `DocumentLoader`, `SEED_CLINICAL_CASES`, `SEED_MEDICAL_THEORY`, `SEED_PAPER_ABSTRACTS` | chunker.py, vector_store.py | ✅ |
+
+#### 知识图谱子系统 `backend/knowledge/graph/`
+
 | 文件 | 职责 | 状态 |
 |------|------|------|
-| `rag.py` | RAGQuery (Qdrant 向量检索) | 🏗 |
-| `vector_store.py` | Qdrant 客户端操作 | 🏗 |
-| `loader.py` | 文档加载/分块 Pipeline | 📋 |
-| `graph_rag.py` | GraphRAGQuery (预留, 接口与 RAGQuery 同构) | 📋 |
+| `__init__.py` | 包入口 | ✅ |
+| `client.py` | KnowledgeGraph: 症状→疾病一跳映射, Neo4j 就绪/内存兜底 | ✅ |
+| `symptom_graph.py` | SymptomGraphBuilder: 种子数据 (100+ 症状-疾病关系), JSON 导入/导出 | ✅ |
 
 ---
 

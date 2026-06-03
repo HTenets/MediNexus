@@ -12,7 +12,7 @@
 第1周 ████████████████████ 100%  项目基础设施
 第2周 ████████████████████ 100%  Agent 框架 + Triage Agent
 第3周 ████████████████████ 100%  Skill 系统 + Doctor Agent ✅ 已升级为: Ollama 优化 + 中英双语 + 降级路径
-第4周 ░░░░░░░░░░░░░░░░░░░░   0%  RAG 知识库 + Review Agent   [增强: 参考级需要双语知识库]
+第4周 ████████████████████ 100%  RAG 知识库 + Review Agent ✅ 三路知识源 + HF-RAG 融合 + 轻量 KG + BM25 降级 + Review 独立验证
 第5周 ░░░░░░░░░░░░░░░░░░░░   0%  记忆系统 + 病历管理 + Followup
 第6周 ████████████████████ 100%  前端完整产品 [强度提升: 全页面+响应式+免责声明]
 第7周 ░░░░░░░░░░░░░░░░░░░░   0%  安全 + Guardrail + Coordinator [缩减: 紧急降为演示级]
@@ -137,11 +137,18 @@ tests/
 │   └── test_agent_communication.py — Agent 通信测试
 ├── unit/
 │   ├── agents/
-│   │   ├── test_skill_system.py   — 19 测试用例 (BaseSkill/Registry/BuiltinSkills)  ✅ 新增 W3
-│   │   └── test_doctor_agent.py   — 16 测试用例 (规则模式/LLM模式/Skill集成)        ✅ 新增 W3
-│   ├── knowledge/  — 待实现
+│   │   ├── test_skill_system.py   — 19 测试用例 (BaseSkill/Registry/BuiltinSkills)  ✅ W3
+│   │   ├── test_doctor_agent.py   — 16 测试用例 (规则模式/LLM模式/Skill集成)        ✅ W3
+│   │   └── test_review_agent.py   — 6 测试用例 (独立RAG验证/风险标记/证据等级)      ✅ W4
+│   ├── knowledge/
+│   │   ├── test_source.py         — 9 测试用例 (三路定义/置信度权重/分块策略)         ✅ W4
+│   │   ├── test_chunker.py        — 12 测试用例 (语义/层次/递归/工厂)                ✅ W4
+│   │   ├── test_bm25.py           — 9 测试用例 (BM25索引/中文分词/多源降级)           ✅ W4
+│   │   ├── test_retriever.py      — 8 测试用例 (空结果/融合/加权/Z-score/BM25路线)   ✅ W4
+│   │   ├── test_knowledge_graph.py— 6 测试用例 (症状查询/JSON加载/疾病信息)          ✅ W4
+│   │   └── test_loader.py         — 6 测试用例 (种子数据/文档加载)                   ✅ W4
 │   └── memory/     — 待实现
 ```
 
-**总测试数: 62** (27 原有 + 35 新增 W3)
-当前测试重点: TriageAgent + DoctorAgent + Skill 系统 + Agent 注册
+**总测试数: 120** (27 原有 + 35 W3 + 58 W4)
+当前测试重点: TriageAgent + DoctorAgent + Skill 系统 + 三路 RAG + 知识图谱 + Review Agent
