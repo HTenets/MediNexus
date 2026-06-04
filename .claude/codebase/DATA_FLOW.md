@@ -220,7 +220,84 @@ flowchart TB
 
 ---
 
-## 7. 关键数据结构关系
+## 7. RAG 知识库数据流 (W4 新增)
+
+```mermaid
+flowchart TB
+    subgraph Input["查询输入"]
+        Q["症状/诊断文本"]
+    end
+
+    subgraph Sources["三路知识源"]
+        A["临床病例库 (0.8)<br/>Semantic Chunking<br/>384 tokens"]
+        B["医学理论库 (0.6)<br/>Hierarchical Chunking<br/>768 parent / 192 child"]
+        C["最新论文库 (0.3)<br/>Recursive Chunking<br/>512 tokens"]
+    end
+
+    subgraph Vector["向量检索 (Qdrant)"]
+        Emb["Embedding<br/>(bge-m3 / text2vec)"]
+        VS["VectorStore.search_batch<br/>并行搜索 3 个集合"]
+    end
+
+    subgraph Fusion["融合层 (HF-RAG)"]
+        R1["RRF 源内融合<br/>score = 1/(k+rank)"]
+        ZS["Z-score 跨源标准化<br/>z = (score-μ)/σ"]
+        CW["置信度加权<br/>0.8 / 0.6 / 0.3"]
+        SORT["排序 → Top-K"]
+    end
+
+    subgraph Fallback["降级路线"]
+        BM25["BM25Okapi 全文搜索<br/>自实现 + 中文分词"]
+    end
+
+    subgraph KG["知识图谱增强"]
+        KGQ["KnowledgeGraph<br/>症状→疾病一跳映射"]
+    end
+
+    subgraph Output["输出"]
+        FMT["query_formatted()<br/>→ LLM Context"]
+    end
+
+    Q --> Emb
+    Emb --> VS
+    
+    VS --> A
+    VS --> B
+    VS --> C
+
+    A -- "Qdrant 可用" --> R1
+    B --> R1
+    C --> R1
+
+    A -- "Qdrant 不可用" --> BM25
+    B --> BM25
+    C --> BM25
+
+    BM25 --> SORT
+
+    R1 --> ZS
+    ZS --> CW
+    CW --> SORT
+
+    SORT --> FMT
+
+    Q --> KGQ
+    KGQ --> FMT
+
+    FMT --> Output
+```
+
+### 降级策略
+
+```
+Qdrant 可用 + Embedding 正常 → 向量检索路线
+Qdrant 不可用 / Embedding 失败 → BM25 全文搜索路线 (自动切换)
+Review Agent → 独立 RAGQuery 实例 (不共享 Doctor 的 RAG 结果)
+```
+
+---
+
+## 8. 关键数据结构关系
 
 ```
 SessionState (运行时)

@@ -17,7 +17,6 @@ Implements the HF-RAG (CIKM 2025) hierarchical fusion approach:
 """
 
 import logging
-import math
 from statistics import mean, stdev
 from typing import Any
 

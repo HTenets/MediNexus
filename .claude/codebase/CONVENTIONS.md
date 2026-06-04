@@ -5,8 +5,6 @@
 
 ---
 
----
-
 ## 1. 项目结构约定
 
 ### Agent 目录结构
@@ -117,6 +115,34 @@ MEDINEXUS_OPENAI_KEY=sk-...      # 可选
 MEDINEXUS_ANTHROPIC_KEY=sk-ant-... # 可选
 MEDINEXUS_OLLAMA_BASE_URL=http://localhost:11434  # Ollama 默认
 ```
+
+---
+
+## 1e. 多源知识库约定 (W4)
+
+### 三路置信度 (固定值)
+```python
+# backend/knowledge/source.py
+CLINICAL_CASES_CONFIG.confidence_weight = 0.8  # 临床病例 — 高
+MEDICAL_THEORY_CONFIG.confidence_weight  = 0.6  # 医学理论 — 中
+LATEST_PAPERS_CONFIG.confidence_weight   = 0.3  # 最新论文 — 低
+```
+
+### 分块策略
+| 源 | 策略 | 方法 | Chunk 大小 |
+|----|------|------|-----------|
+| 临床病例 | Semantic | `SemanticChunker` — 段落边界 | 384 tokens |
+| 医学理论 | Hierarchical | `HierarchicalChunker` — 父子分层 | 768 parent / 192 child |
+| 最新论文 | Recursive | `RecursiveChunker` — 分隔符优先级 | 512 tokens |
+
+### BM25 降级
+- Qdrant 不可用时自动降级到 BM25 全文搜索
+- `backend/knowledge/bm25_fallback.py` 自实现 BM25Okapi
+- 中文分词: bi-gram + 单字混合
+
+### Review Agent 独立性
+- Review Agent 使用独立的 `RAGQuery` 实例, 不共享 Doctor 的 RAG 结果
+- 避免确认偏误: Review 从零开始检索验证
 
 ---
 

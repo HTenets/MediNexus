@@ -1,5 +1,6 @@
 """BaseAgent — abstract base for all agents with hook and tool-calling interfaces."""
 
+import inspect
 from abc import ABC, abstractmethod
 from typing import Any, Callable
 from app.schemas.agent import HandoverManifest
@@ -41,4 +42,4 @@ class BaseAgent(ABC):
         fn = self.tools.get(name)
         if not fn:
             raise ValueError(f"Tool '{name}' not registered on agent '{self.name}'")
-        return await fn(**kwargs) if __import__("inspect").iscoroutinefunction(fn) else fn(**kwargs)
+        return await fn(**kwargs) if inspect.iscoroutinefunction(fn) else fn(**kwargs)

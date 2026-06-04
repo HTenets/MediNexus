@@ -101,7 +101,17 @@ flowchart LR
 | `app/api/consultation.py` | `app.schemas.consultation`, `orchestration.supervisor`, `orchestration.stream` |
 | `app/config.py` | `pydantic_settings` |
 | `llm/client.py` | (抽象) |
-| `knowledge/rag.py` | (TODO) |
+| `knowledge/source.py` | (无) — 纯数据结构 |
+| `knowledge/chunker.py` | `knowledge.source` |
+| `knowledge/vector_store.py` | `qdrant_client` |
+| `knowledge/bm25_fallback.py` | `knowledge.source` |
+| `knowledge/retriever.py` | `knowledge.source`, `knowledge.vector_store`, `knowledge.bm25_fallback` |
+| `knowledge/rag.py` | `knowledge.retriever`, `knowledge.graph` |
+| `knowledge/graph/client.py` | (无) — 种子数据内置 |
+| `knowledge/graph/symptom_graph.py` | (无) — 种子数据内置 |
+| `knowledge/loader.py` | `knowledge.source`, `knowledge.chunker`, `knowledge.vector_store` |
+| `knowledge/graph_rag.py` | `knowledge.rag` |
+| `agents/review/agent.py` | `agents.base`, `agents.registry`, `app.schemas.agent`, `knowledge.rag` (可选) |
 | `memory/manager.py` | (TODO) |
 
 ---

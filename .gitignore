@@ -1,0 +1,22 @@
+# Byte-compiled / runtime
+__pycache__/
+*.py[cod]
+*~*.pyc
+*.egg-info/
+
+# Environment
+.env
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+backend/data/
+logs/
