@@ -20,3 +20,14 @@ Thumbs.db
 # Project specific
 backend/data/
 logs/
+
+# Node.js
+node_modules/
+.next/
+.npmrc
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
