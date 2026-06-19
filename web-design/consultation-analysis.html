@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediNexus - 多维知识源分析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>tailwind.config={theme:{extend:{colors:{medical:{primary:'#2563EB','primary-hover':'#1D4ED8','primary-light':'#EFF4FF','primary-subtle':'#DBEAFE',accent:'#10B981','accent-light':'#D1FAE5',warning:'#F59E0B','warning-light':'#FEF3C7',danger:'#DC2626','danger-light':'#FEE2E2',bg:'#F8FAFF',sidebar:'#EFF4FF',card:'#FFFFFF',elevated:'#F0F5FF','text-primary':'#1E293B','text-secondary':'#475569','text-muted':'#94A3B8',border:'#E2E8F0','border-light':'#F1F5F9'}},fontFamily:{heading:['Plus Jakarta Sans','sans-serif'],sans:['Inter','system-ui','sans-serif']},boxShadow:{'medical-sm':'0 1px 2px rgba(0,0,0,0.04)','medical-md':'0 4px 12px rgba(0,0,0,0.06)','medical-lg':'0 8px 24px rgba(0,0,0,0.08)','medical-primary':'0 4px 16px rgba(37,99,235,0.15)'}}}}</script>
+    <style>body{font-family:'Inter',system-ui,sans-serif}.font-heading{font-family:'Plus Jakarta Sans',sans-serif}</style>
+</head>
+<body class="bg-medical-bg min-h-screen">
+    <div class="flex h-screen">
+        <aside class="w-60 bg-medical-sidebar border-r border-medical-border flex flex-col flex-shrink-0">
+            <div class="p-5 flex items-center gap-3">
+                <div class="w-8 h-8 bg-medical-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">M</div>
+                <div>
+                    <div class="font-semibold text-medical-text-primary">MediNexus</div>
+                    <div class="text-xs text-medical-text-muted">AI助手在线</div>
+                </div>
+            </div>
+            <nav class="px-3 py-2 flex-1">
+                <a href="dashboard.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    控制台
+                </a>
+                <a href="triage.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-medical-primary text-white font-medium shadow-medical-sm text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    AI 问诊
+                </a>
+                <a href="records.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                    健康记录
+                </a>
+                <a href="profile.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    个人中心
+                </a>
+            </nav>
+            <div class="p-3 border-t border-medical-border">
+                <button class="w-full bg-medical-primary text-white py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-medical-primary-hover transition-all shadow-medical-primary">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    开始新分析
+                </button>
+            </div>
+        </aside>
+        
+        <div class="flex-1 overflow-y-auto">
+            <header class="h-16 bg-medical-bg/80 backdrop-blur-md border-b border-medical-border flex items-center justify-between px-6 sticky top-0 z-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 bg-medical-primary rounded-full animate-pulse"></div>
+                    <span class="text-sm font-medium text-medical-primary">诊断映射 Agent 阶段 2/4</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full flex items-center justify-center text-medical-text-secondary hover:bg-medical-sidebar cursor-pointer relative">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                        <span class="absolute top-1 right-1 w-2 h-2 bg-medical-danger rounded-full"></span>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-medical-primary to-purple-500 flex items-center justify-center text-white text-xs font-semibold border-2 border-white shadow-medical-sm">DS</div>
+                </div>
+            </header>
+            
+            <div class="p-8 w-full">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 rounded-xl bg-medical-primary-light flex items-center justify-center">
+                        <svg class="w-5 h-5 text-medical-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <h1 class="font-heading text-3xl font-bold text-medical-text-primary">多维知识源深度分析</h1>
+                    <span class="ml-auto bg-medical-primary text-white text-xs rounded-full px-3 py-1 flex items-center gap-1">
+                        <span class="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+                        AI 正在实时检索与分析...
+                    </span>
+                </div>
+                <p class="text-medical-text-secondary mb-6">MediNexus 正在基于以下三个专业知识库对当前病例进行多维度交叉验证:</p>
+                
+                <!-- Knowledge Grid -->
+                <div class="grid grid-cols-3 gap-5">
+                    <!-- Clinical Case -->
+                    <div class="bg-white rounded-2xl p-6 shadow-medical-sm border border-medical-border hover:shadow-medical-md transition-all cursor-pointer">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-9 h-9 rounded-lg bg-medical-primary-light flex items-center justify-center">
+                                <svg class="w-5 h-5 text-medical-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2a2 2 0 002-2v-4a2 2 0 00-2-2h-2m-14 0H3a2 2 0 00-2 2v4a2 2 0 002 2h2m14-6V5a2 2 0 00-2-2H7a2 2 0 00-2 2v8"/><path d="M3 21h18"/><path d="M9 12h.01M13 12h.01"/></svg>
+                            </div>
+                            <h3 class="font-semibold text-medical-text-primary text-lg">临床案例</h3>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4 border border-medical-border mb-3">
+                            <div class="text-sm font-semibold text-medical-text-primary mb-1">病例 #2023-0912:</div>
+                            <div class="text-base font-semibold text-medical-text-primary mb-2">复杂性偏头痛临床路径</div>
+                            <div class="text-xs text-medical-text-muted mb-3">来源: 协和医院 · 临床数据库</div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-medical-text-muted">匹配度:</span>
+                                <span class="text-lg font-bold text-medical-primary">94%</span>
+                                <div class="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-medical-primary rounded-full" style="width:94%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="#" class="text-sm text-medical-primary flex items-center gap-1">
+                            查看完整病例
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        </a>
+                    </div>
+                    
+                    <!-- Medical Ethics -->
+                    <div class="bg-white rounded-2xl p-6 shadow-medical-sm border border-medical-border hover:shadow-medical-md transition-all cursor-pointer">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-9 h-9 rounded-lg bg-medical-warning-light flex items-center justify-center">
+                                <svg class="w-5 h-5 text-medical-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2M6 7l6 2m0 0l3 9M9 7l3-2m0 0l3 2m-3 9a4.98 4.98 0 00-3.999 0A4.98 4.98 0 006 16.5a4.98 4.98 0 00-3.999 0"/></svg>
+                            </div>
+                            <h3 class="font-semibold text-medical-text-primary text-lg">医学伦理</h3>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4 border border-medical-border mb-3">
+                            <div class="text-base font-semibold text-medical-text-primary mb-2">知情同意与辅助诊断责任归属指南</div>
+                            <div class="text-xs text-medical-text-muted">来源: 国家卫健委医疗伦理委员会</div>
+                        </div>
+                        <a href="#" class="text-sm text-medical-primary flex items-center gap-1">
+                            法律条文详述
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        </a>
+                    </div>
+                    
+                    <!-- Frontier Paper -->
+                    <div class="bg-white rounded-2xl p-6 shadow-medical-sm border border-medical-border hover:shadow-medical-md transition-all cursor-pointer">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-9 h-9 rounded-lg bg-medical-accent-light flex items-center justify-center">
+                                <svg class="w-5 h-5 text-medical-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                            </div>
+                            <h3 class="font-semibold text-medical-text-primary text-lg">前沿论文</h3>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4 border border-medical-border mb-3">
+                            <span class="bg-medical-accent-light text-medical-accent text-xs px-2 py-0.5 rounded-md inline-block mb-2">Nature Medicine</span>
+                            <div class="text-base font-semibold text-medical-text-primary mb-2">基于多智能体架构的罕见病诊断逻辑分析 (2024)</div>
+                            <div class="text-xs text-medical-text-muted">Nature Medicine Journal</div>
+                        </div>
+                        <a href="#" class="text-sm text-medical-primary flex items-center gap-1">
+                            访问原文
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Analysis Results -->
+                <div class="mt-6 bg-white rounded-2xl p-6 shadow-medical-sm border border-medical-border">
+                    <h3 class="font-semibold text-medical-text-primary mb-4">多维度交叉验证结果</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="text-center p-4">
+                            <div class="text-3xl font-bold text-medical-primary mb-1">94%</div>
+                            <div class="text-sm text-medical-text-secondary">临床案例匹配度</div>
+                            <div class="text-xs text-medical-text-muted mt-1">基于 12,345 例相似病例</div>
+                        </div>
+                        <div class="text-center p-4">
+                            <div class="text-3xl font-bold text-medical-accent mb-1">100%</div>
+                            <div class="text-sm text-medical-text-secondary">伦理合规性</div>
+                            <div class="text-xs text-medical-text-muted mt-1">符合国家卫健委指南</div>
+                        </div>
+                        <div class="text-center p-4">
+                            <div class="text-3xl font-bold text-medical-warning mb-1">A+</div>
+                            <div class="text-sm text-medical-text-secondary">证据等级</div>
+                            <div class="text-xs text-medical-text-muted mt-1">基于 3 篇顶级期刊论文</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Next Step -->
+                <div class="mt-6 flex justify-end">
+                    <!-- Agent 分析完成前：补充信息，可返回 triage 继续对话 -->
+                    <a href="triage.html" class="bg-medical-warning text-white rounded-xl px-6 py-3 text-sm font-medium shadow-medical-sm hover:bg-medical-warning/90 transition-all flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M16.023 9.348c-.35.212-.697.424-1.047.636-.354.213-.708.425-1.047.636-.34.212-.677.424-1.015.636-.34.212-.677.424-1.047.636-.354.212-.708.424-1.047.636-.34.212-.677.424-1.015.636-.34.212-.677.424-1.047.636-.354.212-.708.424-1.047.636"/></svg>
+                        补充信息
+                    </a>
+                    <!-- Agent 分析完成后：切换为下一步按钮 -->
+                    <!--
+                    <a href="consultation-review.html" class="bg-medical-primary text-white rounded-xl px-6 py-3 text-sm font-medium shadow-medical-primary hover:bg-medical-primary-hover transition-all flex items-center gap-2">
+                        下一步：方案复核
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+                    </a>
+                    -->
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

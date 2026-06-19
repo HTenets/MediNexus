@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediNexus - 上传新报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>tailwind.config={theme:{extend:{colors:{medical:{primary:'#2563EB','primary-hover':'#1D4ED8','primary-light':'#EFF4FF','primary-subtle':'#DBEAFE',accent:'#10B981','accent-light':'#D1FAE5',warning:'#F59E0B','warning-light':'#FEF3C7',danger:'#DC2626','danger-light':'#FEE2E2',bg:'#F8FAFF',sidebar:'#EFF4FF',card:'#FFFFFF',elevated:'#F0F5FF','text-primary':'#1E293B','text-secondary':'#475569','text-muted':'#94A3B8',border:'#E2E8F0','border-light':'#F1F5F9'}},fontFamily:{heading:['Plus Jakarta Sans','sans-serif'],sans:['Inter','system-ui','sans-serif']},boxShadow:{'medical-sm':'0 1px 2px rgba(0,0,0,0.04)','medical-md':'0 4px 12px rgba(0,0,0,0.06)','medical-lg':'0 8px 24px rgba(0,0,0,0.08)','medical-primary':'0 4px 16px rgba(37,99,235,0.15)'}}}}</script>
+    <style>body{font-family:'Inter',system-ui,sans-serif}.font-heading{font-family:'Plus Jakarta Sans',sans-serif}</style>
+</head>
+<body class="bg-medical-bg min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-60 bg-medical-sidebar border-r border-medical-border flex flex-col flex-shrink-0">
+            <div class="p-5 flex items-center gap-3">
+                <div class="w-8 h-8 bg-medical-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">M</div>
+                <div>
+                    <div class="font-semibold text-medical-text-primary">MediNexus</div>
+                    <div class="text-xs text-medical-text-muted">AI助手在线</div>
+                </div>
+            </div>
+            <nav class="px-3 py-2 flex-1">
+                <a href="dashboard.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    控制台
+                </a>
+                <a href="triage.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    AI 问诊
+                </a>
+                <a href="records.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-medical-primary text-white font-medium shadow-medical-sm text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                    健康记录
+                </a>
+                <a href="profile.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    个人中心
+                </a>
+            </nav>
+            <div class="p-3 border-t border-medical-border">
+                <button class="w-full bg-medical-primary text-white py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-medical-primary-hover transition-all shadow-medical-primary">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    开始新分析
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto">
+            <header class="h-16 bg-medical-bg/80 backdrop-blur-md border-b border-medical-border flex items-center justify-between px-6 sticky top-0 z-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 bg-medical-primary rounded-full animate-pulse"></div>
+                    <span class="text-sm font-medium text-medical-primary">报告上传</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full flex items-center justify-center text-medical-text-secondary hover:bg-medical-sidebar cursor-pointer relative">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                        <span class="absolute top-1 right-1 w-2 h-2 bg-medical-danger rounded-full"></span>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-medical-primary to-purple-500 flex items-center justify-center text-white text-xs font-semibold border-2 border-white shadow-medical-sm">DS</div>
+                </div>
+            </header>
+
+            <div class="p-8 w-full">
+                <!-- Back Button -->
+                <button class="flex items-center gap-2 text-sm text-medical-text-muted hover:text-medical-primary transition-colors mb-4">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+                    返回健康记录
+                </button>
+
+                <!-- Page Header -->
+                <div class="mb-6">
+                    <h1 class="font-heading text-3xl font-bold text-medical-text-primary mb-2">上传新报告</h1>
+                    <p class="text-medical-text-secondary">上传检验报告、影像资料或处方单，AI 将自动解析并归档。</p>
+                </div>
+
+                <!-- Upload Area -->
+                <div class="bg-white rounded-2xl p-8 shadow-medical-sm border border-dashed border-medical-border hover:border-medical-primary transition-colors cursor-pointer mb-6">
+                    <div class="text-center py-10">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-medical-primary-light flex items-center justify-center mb-4">
+                            <svg class="w-8 h-8 text-medical-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9 8.25c0-1.209.668-2.25 1.5-2.25S12 7.041 12 8.25V13.5m0-5.25c0-1.209.668-2.25 1.5-2.25S15 7.041 15 8.25V13.5m0-5.25c0-1.209.668-2.25 1.5-2.25S18 7.041 18 8.25V15c0 2.25-1.5 4.5-4.5 4.5S9 17.25 9 15V8.25z"/></svg>
+                        </div>
+                        <div class="text-lg font-semibold text-medical-primary mb-2">拖放文件到此处，或点击上传</div>
+                        <p class="text-sm text-medical-text-muted mb-4">支持 PDF、JPG、PNG、DICOM 格式，单个文件不超过 50MB</p>
+                        <button class="bg-medical-primary text-white rounded-xl px-6 py-2.5 text-sm font-medium shadow-medical-primary hover:bg-medical-primary-hover transition-colors">选择文件</button>
+                    </div>
+                    <div class="flex justify-center gap-6 mt-6">
+                        <div class="text-center">
+                            <svg class="w-6 h-6 mx-auto text-medical-text-muted mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                            <span class="text-xs text-medical-text-muted">检验报告</span>
+                        </div>
+                        <div class="text-center">
+                            <svg class="w-6 h-6 mx-auto text-medical-text-muted mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-3.182-3.182L15.75 15.75M12 9.75l-2.159 2.159M12 9.75l2.159 2.159"/></svg>
+                            <span class="text-xs text-medical-text-muted">影像资料</span>
+                        </div>
+                        <div class="text-center">
+                            <svg class="w-6 h-6 mx-auto text-medical-text-muted mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                            <span class="text-xs text-medical-text-muted">处方单</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OCR Processing -->
+                <div class="bg-white rounded-2xl p-6 shadow-medical-sm border border-medical-border mb-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <svg class="w-5 h-5 text-medical-primary animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M16.023 9.348c-.35.212-.697.424-1.047.636-.354.213-.708.425-1.047.636-.34.212-.677.424-1.015.636-.34.212-.677.424-1.047.636-.354.212-.708.424-1.047.636-.34.212-.677.424-1.015.636-.34.212-.677.424-1.047.636-.354.212-.708.424-1.047.636"/></svg>
+                        <span class="text-lg font-semibold">AI 正在解析报告内容...</span>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 h-6 rounded-full bg-medical-accent flex items-center justify-center flex-shrink-0">
+                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="text-sm text-medical-text-secondary">文件上传完成</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 h-6 rounded-full bg-medical-accent flex items-center justify-center flex-shrink-0">
+                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                            <span class="text-sm text-medical-text-secondary">OCR 文字识别完成</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 h-6 rounded-full bg-medical-primary flex items-center justify-center flex-shrink-0 animate-pulse">
+                                <svg class="w-3 h-3 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M16.023 9.348c-.35.212-.697.424-1.047.636-.354.213-.708.425-1.047.636-.34.212-.677.424-1.015.636-.34.212-.677.424-1.047.636-.354.212-.708.424-1.047.636-.34.212-.677.424-1.015.636-.34.212-.677.424-1.047.636-.354.212-.708.424-1.047.636"/></svg>
+                            </div>
+                            <span class="text-sm text-medical-primary font-medium">AI 结构化解析中...</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                <span class="text-xs text-gray-400 font-medium">4</span>
+                            </div>
+                            <span class="text-sm text-medical-text-muted">数据归档</span>
+                        </div>
+                    </div>
+                    <button class="mt-4 text-sm text-medical-danger hover:underline cursor-pointer">取消解析</button>
+                </div>
+
+                <!-- Preview Section -->
+                <div class="bg-white rounded-2xl p-6 shadow-medical-sm border border-medical-border mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">解析结果预览</h3>
+                        <span class="bg-medical-accent-light text-medical-accent rounded-full px-3 py-1 text-xs font-medium">识别置信度 96%</span>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                        <div class="text-sm text-medical-text-muted mb-3">报告类型: 血常规 (CBC)</div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-white rounded-lg p-3">
+                                <div class="text-xs text-medical-text-muted mb-1">白细胞计数</div>
+                                <div class="text-sm font-medium">6.5 x10^9/L</div>
+                                <div class="text-xs text-medical-accent">参考: 4.0-10.0</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3">
+                                <div class="text-xs text-medical-text-muted mb-1">红细胞计数</div>
+                                <div class="text-sm font-medium">4.2 x10^12/L</div>
+                                <div class="text-xs text-medical-accent">参考: 4.0-5.5</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3">
+                                <div class="text-xs text-medical-text-muted mb-1">血红蛋白</div>
+                                <div class="text-sm font-medium">135 g/L</div>
+                                <div class="text-xs text-medical-accent">参考: 120-160</div>
+                            </div>
+                            <div class="bg-white rounded-lg p-3">
+                                <div class="text-xs text-medical-text-muted mb-1">血小板计数</div>
+                                <div class="text-sm font-medium">250 x10^9/L</div>
+                                <div class="text-xs text-medical-accent">参考: 100-300</div>
+                            </div>
+                        </div>
+                        <div class="mt-3 bg-medical-primary-light rounded-lg p-3 flex gap-2">
+                            <svg class="w-4 h-4 text-medical-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                            <span class="text-xs text-medical-primary">所有指标均在正常范围内，无异常发现。</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-3">
+                        <button class="flex-1 border border-medical-border rounded-xl py-2.5 text-sm text-medical-text-secondary hover:bg-gray-50 transition-colors">重新上传</button>
+                        <button class="flex-1 bg-medical-primary text-white rounded-xl py-2.5 text-sm shadow-medical-primary hover:bg-medical-primary-hover transition-colors">确认归档</button>
+                    </div>
+                </div>
+
+                <!-- Tips -->
+                <div class="bg-medical-primary-light rounded-2xl p-5 flex gap-3">
+                    <svg class="w-5 h-5 text-medical-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-1.5m-1.5 1.5a6.01 6.01 0 01-1.5-1.5M12 18a6.01 6.01 0 00-1.5 1.5m1.5-1.5a6.01 6.01 0 001.5 1.5M12 18v-5.25m0 0a6.01 6.01 0 00-1.5-1.5m1.5 1.5a6.01 6.01 0 011.5-1.5M12 18a6.01 6.01 0 00-1.5 1.5m1.5-1.5a6.01 6.01 0 00-1.5-1.5m0 0v-5.25m0 0a6.01 6.01 0 001.5-1.5m-1.5 1.5a6.01 6.01 0 01-1.5-1.5"/></svg>
+                    <div>
+                        <div class="text-sm font-semibold text-medical-primary mb-1">上传提示</div>
+                        <ul class="text-xs text-medical-primary/80 space-y-1">
+                            <li>请确保文件清晰可读，避免反光或阴影</li>
+                            <li>建议上传原始 PDF 文件以获得最佳识别效果</li>
+                            <li>涉及隐私信息已自动脱敏处理</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

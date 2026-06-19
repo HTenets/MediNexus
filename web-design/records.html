@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediNexus - 健康档案</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>tailwind.config={theme:{extend:{colors:{medical:{primary:'#2563EB','primary-hover':'#1D4ED8','primary-light':'#EFF4FF','primary-subtle':'#DBEAFE',accent:'#10B981','accent-light':'#D1FAE5',warning:'#F59E0B','warning-light':'#FEF3C7',danger:'#DC2626','danger-light':'#FEE2E2',bg:'#F8FAFF',sidebar:'#EFF4FF',card:'#FFFFFF',elevated:'#F0F5FF','text-primary':'#1E293B','text-secondary':'#475569','text-muted':'#94A3B8',border:'#E2E8F0','border-light':'#F1F5F9'}},fontFamily:{heading:['Plus Jakarta Sans','sans-serif'],sans:['Inter','system-ui','sans-serif']},boxShadow:{'medical-sm':'0 1px 2px rgba(0,0,0,0.04)','medical-md':'0 4px 12px rgba(0,0,0,0.06)','medical-lg':'0 8px 24px rgba(0,0,0,0.08)','medical-primary':'0 4px 16px rgba(37,99,235,0.15)'}}}}</script>
+    <style>body{font-family:'Inter',system-ui,sans-serif}.font-heading{font-family:'Plus Jakarta Sans',sans-serif}</style>
+</head>
+<body class="bg-medical-bg min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-60 bg-medical-sidebar border-r border-medical-border flex flex-col flex-shrink-0">
+            <div class="p-5 flex items-center gap-3">
+                <div class="w-8 h-8 bg-medical-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">M</div>
+                <div>
+                    <div class="font-semibold text-medical-text-primary">MediNexus</div>
+                    <div class="text-xs text-medical-text-muted">AI助手在线</div>
+                </div>
+            </div>
+            <nav class="px-3 py-2 flex-1">
+                <a href="dashboard.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    控制台
+                </a>
+                <a href="triage.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    AI 问诊
+                </a>
+                <a href="records.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-medical-primary text-white font-medium shadow-medical-sm text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                    健康档案
+                </a>
+                <a href="profile.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    个人设置
+                </a>
+            </nav>
+            <div class="p-3 border-t border-medical-border">
+                <button class="w-full bg-medical-primary text-white py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-medical-primary-hover transition-all shadow-medical-primary">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    开始新分析
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto">
+            <header class="h-16 bg-medical-bg/80 backdrop-blur-md border-b border-medical-border flex items-center justify-between px-6 sticky top-0 z-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 bg-medical-primary rounded-full animate-pulse"></div>
+                    <span class="text-sm font-medium text-medical-primary">健康档案中心</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full flex items-center justify-center text-medical-text-secondary hover:bg-medical-sidebar cursor-pointer relative">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                        <span class="absolute top-1 right-1 w-2 h-2 bg-medical-danger rounded-full"></span>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-medical-primary to-purple-500 flex items-center justify-center text-white text-xs font-semibold border-2 border-white shadow-medical-sm">DL</div>
+                </div>
+            </header>
+
+            <div class="p-8 w-full">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 rounded-xl bg-medical-primary-light flex items-center justify-center">
+                        <svg class="w-5 h-5 text-medical-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                    </div>
+                    <h1 class="font-heading text-3xl font-bold text-medical-text-primary">健康档案</h1>
+                </div>
+                <p class="text-medical-text-secondary mb-6">综合医疗史、AI 智能分析、随访计划及检查报告的统一管理中心。</p>
+
+                <!-- Overview Bar -->
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                        <div class="text-xs text-medical-text-muted mb-1">综合健康评分</div>
+                        <div class="text-3xl font-bold text-medical-primary">92<span class="text-base text-medical-text-muted font-normal">/100</span></div>
+                        <div class="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-medical-primary rounded-full" style="width:92%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                        <div class="text-xs text-medical-text-muted mb-1">生物学年龄</div>
+                        <div class="text-3xl font-bold text-medical-primary">34<span class="text-base text-medical-text-muted font-normal">岁</span></div>
+                        <span class="bg-medical-accent-light text-medical-accent text-xs px-2 py-0.5 rounded-full mt-1 inline-block">↓ -2岁</span>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                        <div class="text-xs text-medical-text-muted mb-1">最近问诊</div>
+                        <div class="text-lg font-semibold text-medical-text-primary">急性上呼吸道感染</div>
+                        <div class="text-xs text-medical-text-muted mt-1">2026-06-12 · 已完结</div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                        <div class="text-xs text-medical-text-muted mb-1">待随访任务</div>
+                        <div class="text-3xl font-bold text-medical-warning">3</div>
+                        <div class="text-xs text-medical-text-muted mt-1">1 项即将到期</div>
+                    </div>
+                </div>
+
+                <!-- Main Grid -->
+                <div class="grid grid-cols-12 gap-5">
+                    <!-- Left Column -->
+                    <div class="col-span-3 space-y-5">
+                        <!-- AI Health Memory -->
+                        <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                            <div class="flex items-center gap-2 mb-4">
+                                <div class="w-8 h-8 rounded-lg bg-medical-primary-light flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-medical-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                                </div>
+                                <h3 class="font-semibold text-medical-text-primary text-sm">AI 健康记忆</h3>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-start">
+                                    <span class="text-sm text-medical-text-primary">慢性偏头痛史 (先兆型)</span>
+                                    <span class="bg-medical-primary-light text-medical-primary text-xs px-2 py-0.5 rounded-md flex-shrink-0 ml-2">高置信度</span>
+                                </div>
+                                <div class="flex justify-between items-start">
+                                    <span class="text-sm text-medical-text-primary">轻度青霉素过敏</span>
+                                    <span class="bg-medical-warning-light text-medical-warning text-xs px-2 py-0.5 rounded-md flex-shrink-0 ml-2">医生已验证</span>
+                                </div>
+                                <div class="flex justify-between items-start">
+                                    <span class="text-sm text-medical-text-primary">倾向于清晨预约</span>
+                                    <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-md flex-shrink-0 ml-2">推断行为</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vitals -->
+                        <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                            <h3 class="font-semibold text-medical-text-primary text-sm mb-4">最新体征</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-medical-text-secondary">血压</span>
+                                    <span class="text-sm font-medium text-medical-text-primary">128/82 mmHg</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-medical-text-secondary">心率</span>
+                                    <span class="text-sm font-medium text-medical-text-primary">72 bpm</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-medical-text-secondary">BMI</span>
+                                    <span class="text-sm font-medium text-medical-text-primary">22.4</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-medical-text-secondary">血红蛋白</span>
+                                    <span class="text-sm font-medium text-medical-accent">13.5 g/dL</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Medications -->
+                        <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                            <h3 class="font-semibold text-medical-text-primary text-sm mb-4">当前用药</h3>
+                            <div class="space-y-3">
+                                <div class="bg-gray-50 rounded-xl p-3">
+                                    <div class="text-sm font-medium text-medical-text-primary">对乙酰氨基酚</div>
+                                    <div class="text-xs text-medical-text-muted mt-0.5">500mg · 每6小时一次</div>
+                                </div>
+                                <div class="bg-gray-50 rounded-xl p-3">
+                                    <div class="text-sm font-medium text-medical-text-primary">布洛芬</div>
+                                    <div class="text-xs text-medical-text-muted mt-0.5">200mg · 必要时服用</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Center Column -->
+                    <div class="col-span-6 space-y-5">
+                        <!-- Follow-up Calendar -->
+                        <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-lg bg-medical-warning-light flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-medical-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+                                    </div>
+                                    <h3 class="font-semibold text-medical-text-primary">随访计划</h3>
+                                </div>
+                                <span class="bg-medical-warning-light text-medical-warning text-xs px-2 py-0.5 rounded-full">3 项待办</span>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex gap-3 items-start p-3 bg-medical-warning-light/40 rounded-xl border border-medical-warning/20">
+                                    <div class="w-2 h-2 rounded-full bg-medical-warning mt-1.5 flex-shrink-0"></div>
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm font-medium text-medical-text-primary">复查空腹血脂</span>
+                                            <span class="text-xs text-medical-warning font-medium">3天后到期</span>
+                                        </div>
+                                        <div class="text-xs text-medical-text-muted mt-0.5">需空腹 8-12 小时 · 建议上午就诊</div>
+                                    </div>
+                                    <button class="text-xs bg-white border border-medical-border rounded-lg px-3 py-1 hover:bg-gray-50 transition-colors flex-shrink-0">预约</button>
+                                </div>
+                                <div class="flex gap-3 items-start p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                    <div class="w-2 h-2 rounded-full bg-medical-primary mt-1.5 flex-shrink-0"></div>
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm font-medium text-medical-text-primary">内分泌科咨询</span>
+                                            <span class="text-xs text-medical-text-muted">2周后</span>
+                                        </div>
+                                        <div class="text-xs text-medical-text-muted mt-0.5">评估血糖控制情况</div>
+                                    </div>
+                                    <button class="text-xs bg-white border border-medical-border rounded-lg px-3 py-1 hover:bg-gray-50 transition-colors flex-shrink-0">预约</button>
+                                </div>
+                                <div class="flex gap-3 items-start p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                    <div class="w-2 h-2 rounded-full bg-gray-300 mt-1.5 flex-shrink-0"></div>
+                                    <div class="flex-1">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm font-medium text-medical-text-primary">年度体检</span>
+                                            <span class="text-xs text-medical-text-muted">1个月后</span>
+                                        </div>
+                                        <div class="text-xs text-medical-text-muted mt-0.5">全面体检套餐</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Medical Timeline -->
+                        <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                            <div class="flex justify-between items-center mb-5">
+                                <h3 class="font-semibold text-medical-text-primary">医疗时间线</h3>
+                                <a href="#" class="text-sm text-medical-primary">查看全部 →</a>
+                            </div>
+                            <div class="relative pl-8">
+                                <div class="absolute left-[11px] top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                                <div class="relative pb-5">
+                                    <div class="absolute left-[-21px] top-1 w-4 h-4 rounded-full bg-medical-primary ring-4 ring-medical-primary-light flex items-center justify-center">
+                                        <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+                                    </div>
+                                    <div class="flex justify-between items-start mb-1">
+                                        <div class="text-sm font-semibold text-medical-text-primary">急性上呼吸道感染 AI 问诊</div>
+                                        <span class="text-xs text-medical-text-muted">2026-06-12</span>
+                                    </div>
+                                    <div class="text-xs text-medical-text-muted mb-2">MediNexus AI 问诊系统</div>
+                                    <div class="bg-medical-primary-light rounded-xl p-3 text-xs text-medical-primary flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        问诊已完成 · 生成诊断建议与用药方案
+                                    </div>
+                                </div>
+                                <div class="relative pb-5">
+                                    <div class="absolute left-[-21px] top-1 w-4 h-4 rounded-full bg-gray-300 ring-4 ring-gray-100"></div>
+                                    <div class="flex justify-between items-start mb-1">
+                                        <div class="text-sm font-semibold text-medical-text-primary">综合代谢组图 (CMP)</div>
+                                        <span class="text-xs text-medical-text-muted">2023-10-15</span>
+                                    </div>
+                                    <div class="text-xs text-medical-text-muted mb-2">瑞金医院 · 检验科</div>
+                                    <div class="bg-gray-50 rounded-xl p-3 flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-medical-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                                        <span class="text-xs">综合代谢组图报告.pdf</span>
+                                    </div>
+                                </div>
+                                <div class="relative pb-5">
+                                    <div class="absolute left-[-21px] top-1 w-4 h-4 rounded-full bg-gray-300 ring-4 ring-gray-100"></div>
+                                    <div class="flex justify-between items-start mb-1">
+                                        <div class="text-sm font-semibold text-medical-text-primary">胸部 X 光片 (正侧位)</div>
+                                        <span class="text-xs text-medical-text-muted">2023-09-28</span>
+                                    </div>
+                                    <div class="text-xs text-medical-text-muted mb-2">中山医院 · 影像中心</div>
+                                    <span class="bg-gray-100 text-gray-600 text-xs rounded-full px-2 py-0.5">无异常发现</span>
+                                </div>
+                                <div class="relative">
+                                    <div class="absolute left-[-21px] top-1 w-4 h-4 rounded-full bg-gray-300 ring-4 ring-gray-100"></div>
+                                    <div class="flex justify-between items-start mb-1">
+                                        <div class="text-sm font-semibold text-medical-text-primary">专科复诊 - 心血管内科</div>
+                                        <span class="text-xs text-medical-text-muted">2023-09-10</span>
+                                    </div>
+                                    <p class="text-xs text-medical-text-secondary mt-1">李医生记录了血压控制情况，调整了用药剂量。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column -->
+                    <div class="col-span-3 space-y-5">
+                        <!-- Digital Twin -->
+                        <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="font-semibold text-medical-text-primary text-sm">数字孪生</h3>
+                                <a href="#" class="text-xs text-medical-primary">3D →</a>
+                            </div>
+                            <div class="h-40 bg-gradient-to-b from-gray-100 to-gray-200 rounded-xl flex items-center justify-center relative mb-3">
+                                <div class="w-24 h-36 bg-gradient-to-b from-blue-100/50 to-blue-50/30 rounded-full relative">
+                                    <div class="absolute top-3 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-medical-danger rounded-full shadow-lg animate-pulse"></div>
+                                    <div class="absolute top-12 left-1/3 w-2.5 h-2.5 bg-medical-danger rounded-full shadow-lg animate-pulse" style="animation-delay:0.5s"></div>
+                                    <div class="absolute top-20 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-medical-danger rounded-full shadow-lg animate-pulse" style="animation-delay:1s"></div>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="flex justify-between items-center p-2 bg-medical-sidebar rounded-lg">
+                                    <div>
+                                        <div class="text-xs text-medical-text-muted">炎症水平</div>
+                                        <div class="text-sm font-semibold text-medical-accent">低</div>
+                                    </div>
+                                    <div class="w-1.5 h-1.5 rounded-full bg-medical-accent"></div>
+                                </div>
+                                <div class="flex justify-between items-center p-2 bg-medical-sidebar rounded-lg">
+                                    <div>
+                                        <div class="text-xs text-medical-text-muted">代谢率</div>
+                                        <div class="text-sm font-semibold text-medical-primary">优</div>
+                                    </div>
+                                    <div class="w-1.5 h-1.5 rounded-full bg-medical-primary"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Archive Summary -->
+                        <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="w-8 h-8 rounded-lg bg-medical-primary-light flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-medical-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                </div>
+                                <h3 class="font-semibold text-medical-text-primary text-sm">AI 档案摘要</h3>
+                            </div>
+                            <p class="text-xs text-medical-text-secondary leading-relaxed mb-3">患者整体指标保持平稳。最新全血细胞计数显示血红蛋白已恢复至正常区间，前期轻度贫血已改善。</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="bg-medical-accent-light text-medical-accent text-xs px-2 py-0.5 rounded-full">贫血改善</span>
+                                <span class="bg-medical-primary-light text-medical-primary text-xs px-2 py-0.5 rounded-full">ECG 正常</span>
+                                <span class="bg-medical-warning-light text-medical-warning text-xs px-2 py-0.5 rounded-full">需复查血脂</span>
+                            </div>
+                        </div>
+
+                        <!-- Report Thumbnails -->
+                        <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border">
+                            <h3 class="font-semibold text-medical-text-primary text-sm mb-3">近期检查</h3>
+                            <div class="space-y-3">
+                                <div class="bg-gray-900 rounded-xl p-3 relative overflow-hidden">
+                                    <div class="text-white/60 text-xs mb-1">MRI 脑部扫描</div>
+                                    <div class="text-white/40 text-xs">2023-10-05 · 142 张切片</div>
+                                    <div class="absolute top-3 right-3">
+                                        <span class="bg-medical-accent/80 text-white text-xs rounded-md px-2 py-0.5">正常</span>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50 rounded-xl p-3 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-medical-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                                    <span class="text-xs text-medical-text-primary">胸部 X 光片</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

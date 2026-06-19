@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediNexus - 登录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>tailwind.config={theme:{extend:{colors:{medical:{primary:'#2563EB','primary-hover':'#1D4ED8','primary-light':'#EFF4FF','primary-subtle':'#DBEAFE',accent:'#10B981','accent-light':'#D1FAE5',warning:'#F59E0B','warning-light':'#FEF3C7',danger:'#DC2626','danger-light':'#FEE2E2',bg:'#F8FAFF',sidebar:'#EFF4FF',card:'#FFFFFF',elevated:'#F0F5FF','text-primary':'#1E293B','text-secondary':'#475569','text-muted':'#94A3B8',border:'#E2E8F0','border-light':'#F1F5F9'}},fontFamily:{heading:['Plus Jakarta Sans','sans-serif'],sans:['Inter','system-ui','sans-serif']},boxShadow:{'medical-sm':'0 1px 2px rgba(0,0,0,0.04)','medical-md':'0 4px 12px rgba(0,0,0,0.06)','medical-lg':'0 8px 24px rgba(0,0,0,0.08)','medical-primary':'0 4px 16px rgba(37,99,235,0.15)'}}}}</script>
+    <style>body{font-family:'Inter',system-ui,sans-serif}.font-heading{font-family:'Plus Jakarta Sans',sans-serif}</style>
+</head>
+<body class="bg-medical-bg min-h-screen">
+    <div class="min-h-screen flex">
+        <!-- Left Panel -->
+        <div class="hidden lg:flex flex-1 bg-medical-primary flex-col justify-center items-center p-[60px] text-white relative overflow-hidden">
+            <div class="absolute inset-0 opacity-10">
+                <div class="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+                <div class="absolute bottom-20 right-20 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+            </div>
+            <div class="relative z-10 text-center">
+                <div class="w-16 h-16 mx-auto rounded-2xl bg-white/20 flex items-center justify-center mb-6">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <h1 class="text-3xl font-bold mb-2">MediNexus</h1>
+                <p class="text-lg text-white/80">AI 多智能体医疗诊断平台</p>
+            </div>
+            <div class="relative z-10 mt-12 space-y-6 max-w-[360px]">
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    </div>
+                    <div>
+                        <div class="text-base font-medium">多 Agent 协作诊断</div>
+                        <div class="text-sm text-white/70">Triage → Doctor → Review → Follow-up</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <div>
+                        <div class="text-base font-medium">本地部署，数据不出设备</div>
+                        <div class="text-sm text-white/70">私有化部署保障数据安全</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <div>
+                        <div class="text-base font-medium">完全开源，隐私可控</div>
+                        <div class="text-sm text-white/70">透明可审计的医疗AI平台</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="flex-1 flex flex-col justify-center items-center p-10">
+            <div class="w-full max-w-[440px] bg-white rounded-2xl shadow-medical-lg p-10">
+                <!-- Tab Switch -->
+                <div class="flex mb-8 bg-gray-100 rounded-xl p-1">
+                    <button class="flex-1 text-center py-2.5 rounded-lg text-sm font-medium bg-white text-medical-primary shadow-sm">登录</button>
+                    <button class="flex-1 text-center py-2.5 rounded-lg text-sm text-medical-text-muted hover:text-medical-text-secondary transition-colors">注册</button>
+                </div>
+
+                <!-- Role Selector -->
+                <div class="mb-6">
+                    <div class="text-sm text-medical-text-muted mb-2">选择角色</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="border border-medical-primary bg-medical-primary-light rounded-xl p-4 text-center cursor-pointer transition-all">
+                            <svg class="w-6 h-6 mx-auto text-medical-primary mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                            <div class="text-sm font-medium">我是患者</div>
+                            <div class="text-xs text-medical-text-muted mt-0.5">自助问诊</div>
+                        </div>
+                        <div class="border border-medical-border rounded-xl p-4 text-center cursor-pointer hover:border-medical-primary/50 transition-all">
+                            <svg class="w-6 h-6 mx-auto text-medical-text-muted mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M20.24 12.24a6 6 0 00-8.49-8.49L7.05 8.49a6 6 0 008.49 8.49l4.7-4.74z"/><line x1="9.95" y1="9.95" x2="14.05" y2="14.05"/></svg>
+                            <div class="text-sm font-medium">我是医生</div>
+                            <div class="text-xs text-medical-text-muted mt-0.5">诊断辅助</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Login Form -->
+                <form class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-medical-text-primary mb-1.5">邮箱 / 手机号</label>
+                        <input type="text" placeholder="请输入邮箱或手机号" class="w-full rounded-xl border border-medical-border px-4 py-3 text-sm focus:ring-2 focus:ring-medical-primary focus:border-medical-primary outline-none transition-all">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1.5">
+                            <label class="block text-sm font-medium text-medical-text-primary">密码</label>
+                            <a href="#" class="text-xs text-medical-primary hover:underline">忘记密码?</a>
+                        </div>
+                        <input type="password" placeholder="请输入密码" class="w-full rounded-xl border border-medical-border px-4 py-3 text-sm focus:ring-2 focus:ring-medical-primary focus:border-medical-primary outline-none transition-all">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="w-4 h-4 rounded border-medical-border text-medical-primary focus:ring-medical-primary">
+                            <span class="text-sm text-medical-text-secondary">记住我</span>
+                        </label>
+                    </div>
+                    <button type="button" class="w-full bg-medical-primary text-white rounded-xl py-3 text-sm font-medium shadow-medical-primary hover:bg-medical-primary-hover transition-all active:scale-[0.98]">
+                        登录
+                    </button>
+                </form>
+
+                <!-- Divider -->
+                <div class="flex items-center gap-3 my-6">
+                    <div class="flex-1 h-px bg-medical-border"></div>
+                    <span class="text-xs text-medical-text-muted">或</span>
+                    <div class="flex-1 h-px bg-medical-border"></div>
+                </div>
+
+                <!-- OAuth -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button class="border border-medical-border rounded-xl py-2.5 flex items-center justify-center gap-2 text-sm text-medical-text-secondary hover:bg-gray-50 transition-colors">
+                        <svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M8.691 2.188C3.891 2.188.047 5.956.047 10.558c0 2.89 1.525 5.415 3.876 7.111l-.875 3.344 3.697-2.37c.989.264 2.037.41 3.123.41 5.282 0 9.123-3.766 9.123-8.395 0-4.603-3.844-8.37-9.124-8.37zm-.125 15.03c-1.052 0-2.076-.145-3.053-.414l-.438-.124-1.832 1.176.484-1.836-.29-.48C2.53 14.97 1.5 12.865 1.5 10.558c0-3.958 3.234-7.175 7.19-7.175 3.961 0 7.197 3.217 7.197 7.175 0 3.955-3.236 7.175-7.197 7.175v-.014z"/></svg>
+                        微信登录
+                    </button>
+                    <button class="border border-medical-border rounded-xl py-2.5 flex items-center justify-center gap-2 text-sm text-medical-text-secondary hover:bg-gray-50 transition-colors">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-4.09-1.87-8.72-6.37-9.97-11.62-.45-1.77.76-2.67 1.8-3.08.83-.31 1.67.18 2.11 1.02.35.68.03 1.68-.28 2.37-.17.37-.12.66.14.91.66.66 1.73 1.56 2.64 2.1.42.25.72.13 1.05-.13.52-.4 1.15-.88 1.79-.72.71.18 1.33.71 1.67 1.33.32.58.24 1.26-.1 1.82-.32.53-.79.94-1.28 1.32-.39.31-.53.56-.37.96.39 1.02 1.02 1.94 1.79 2.72.41.41.8.48 1.21.08.5-.48.93-1.04 1.27-1.66.32-.58.87-.75 1.44-.53.57.23.96.71 1.04 1.31.1.73-.07 1.43-.45 2.05-.63 1.06-1.62 1.97-2.64 2.65z"/></svg>
+                        Apple ID
+                    </button>
+                </div>
+
+                <!-- Footer -->
+                <div class="text-center mt-6 text-xs text-medical-text-muted">
+                    登录即表示您同意我们的 <a href="#" class="text-medical-primary hover:underline">服务条款</a> 和 <a href="#" class="text-medical-primary hover:underline">隐私政策</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

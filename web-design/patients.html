@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediNexus - 患者管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>tailwind.config={theme:{extend:{colors:{medical:{primary:'#2563EB','primary-hover':'#1D4ED8','primary-light':'#EFF4FF','primary-subtle':'#DBEAFE',accent:'#10B981','accent-light':'#D1FAE5',warning:'#F59E0B','warning-light':'#FEF3C7',danger:'#DC2626','danger-light':'#FEE2E2',bg:'#F8FAFF',sidebar:'#EFF4FF',card:'#FFFFFF',elevated:'#F0F5FF','text-primary':'#1E293B','text-secondary':'#475569','text-muted':'#94A3B8',border:'#E2E8F0','border-light':'#F1F5F9'}},fontFamily:{heading:['Plus Jakarta Sans','sans-serif'],sans:['Inter','system-ui','sans-serif']},boxShadow:{'medical-sm':'0 1px 2px rgba(0,0,0,0.04)','medical-md':'0 4px 12px rgba(0,0,0,0.06)','medical-lg':'0 8px 24px rgba(0,0,0,0.08)','medical-primary':'0 4px 16px rgba(37,99,235,0.15)'}}}}</script>
+    <style>body{font-family:'Inter',system-ui,sans-serif}.font-heading{font-family:'Plus Jakarta Sans',sans-serif}</style>
+</head>
+<body class="bg-medical-bg min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-60 bg-medical-sidebar border-r border-medical-border flex flex-col flex-shrink-0">
+            <div class="p-5 flex items-center gap-3">
+                <div class="w-8 h-8 bg-medical-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">M</div>
+                <div>
+                    <div class="font-semibold text-medical-text-primary">MediNexus</div>
+                    <div class="text-xs text-medical-text-muted">AI助手在线</div>
+                </div>
+            </div>
+            <nav class="px-3 py-2 flex-1">
+                <a href="dashboard.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                    控制台
+                </a>
+                <a href="triage.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    AI 问诊
+                </a>
+                <a href="records.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                    健康记录
+                </a>
+                <a href="patients.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-medical-primary text-white font-medium shadow-medical-sm text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M15 19.128a9.38 9.38 0 002.625.463 9.323 9.323 0 003.674-.653m-9.238-6.425a9.38 9.38 0 00-2.625.463 9.323 9.323 0 00-3.674.653m14.348-6.425a9.38 9.38 0 00-2.625-.463 9.323 9.323 0 00-3.674.653M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    患者管理
+                </a>
+                <a href="profile.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-medical-text-secondary hover:bg-white/60 transition-all text-sm mb-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    个人中心
+                </a>
+            </nav>
+            <div class="p-3 border-t border-medical-border">
+                <button class="w-full bg-medical-primary text-white py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-medical-primary-hover transition-all shadow-medical-primary">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                    开始新分析
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto">
+            <header class="h-16 bg-medical-bg/80 backdrop-blur-md border-b border-medical-border flex items-center justify-between px-6 sticky top-0 z-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 bg-medical-primary rounded-full animate-pulse"></div>
+                    <span class="text-sm font-medium text-medical-primary">患者管理</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full flex items-center justify-center text-medical-text-secondary hover:bg-medical-sidebar cursor-pointer relative">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                        <span class="absolute top-1 right-1 w-2 h-2 bg-medical-danger rounded-full"></span>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-medical-primary to-purple-500 flex items-center justify-center text-white text-xs font-semibold border-2 border-white shadow-medical-sm">DS</div>
+                </div>
+            </header>
+
+            <div class="p-8 w-full">
+                <!-- Page Header -->
+                <div class="mb-6">
+                    <h1 class="font-heading text-3xl font-bold text-medical-text-primary mb-2">患者管理</h1>
+                    <p class="text-medical-text-secondary">管理您的患者队列，查看问诊状态与历史记录。</p>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex gap-3 mb-6">
+                    <button class="bg-medical-primary text-white rounded-xl px-4 py-2.5 text-sm font-medium flex items-center gap-2 hover:bg-medical-primary-hover transition-colors shadow-medical-primary">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                        新建问诊
+                    </button>
+                    <button class="border border-medical-border rounded-xl px-4 py-2.5 text-sm text-medical-text-secondary flex items-center gap-2 hover:bg-white transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                        导出列表
+                    </button>
+                </div>
+
+                <!-- Stats Row -->
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-medical-primary-light flex items-center justify-center flex-shrink-0">
+                            <svg class="w-6 h-6 text-medical-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M15 19.128a9.38 9.38 0 002.625.463 9.323 9.323 0 003.674-.653m-9.238-6.425a9.38 9.38 0 00-2.625.463 9.323 9.323 0 00-3.674.653m14.348-6.425a9.38 9.38 0 00-2.625-.463 9.323 9.323 0 00-3.674.653M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-medical-text-primary">128</div>
+                            <div class="text-sm text-medical-text-muted">总患者数</div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-medical-warning-light flex items-center justify-center flex-shrink-0">
+                            <svg class="w-6 h-6 text-medical-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-medical-warning">12</div>
+                            <div class="text-sm text-medical-text-muted">待处理</div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-medical-accent-light flex items-center justify-center flex-shrink-0">
+                            <svg class="w-6 h-6 text-medical-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M3.75 13.5l10.5-11.25L12 3.75 8.25 7.5 3.75 12.75v.75m6-3.75l10.5 11.25L12 20.25 8.25 16.5 3.75 11.25v-.75m6-3.75L3.75 13.5"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-medical-accent">86</div>
+                            <div class="text-sm text-medical-text-muted">本月新增</div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-5 shadow-medical-sm border border-medical-border flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-medical-danger-light flex items-center justify-center flex-shrink-0">
+                            <svg class="w-6 h-6 text-medical-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.941 3.374 1.653 0 3.034-.825 3.75-2.062M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-medical-danger">3</div>
+                            <div class="text-sm text-medical-text-muted">紧急标记</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Bar -->
+                <div class="bg-white rounded-2xl p-4 shadow-medical-sm border border-medical-border mb-6 flex flex-wrap items-center gap-3">
+                    <div class="flex-1 min-w-[240px] flex items-center gap-2 bg-gray-50 rounded-xl border border-medical-border px-4 py-2.5">
+                        <svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                        <input type="text" placeholder="搜索患者姓名、ID、症状..." class="bg-transparent outline-none text-sm w-full">
+                    </div>
+                    <select class="bg-gray-50 rounded-xl border border-medical-border px-3 py-2.5 text-sm text-medical-text-secondary outline-none cursor-pointer">
+                        <option>全部状态</option>
+                        <option>待分诊</option>
+                        <option>诊断中</option>
+                        <option>待复核</option>
+                        <option>已完成</option>
+                    </select>
+                    <select class="bg-gray-50 rounded-xl border border-medical-border px-3 py-2.5 text-sm text-medical-text-secondary outline-none cursor-pointer">
+                        <option>全部科室</option>
+                        <option>内科</option>
+                        <option>外科</option>
+                        <option>心血管</option>
+                        <option>神经科</option>
+                        <option>皮肤科</option>
+                    </select>
+                    <select class="bg-gray-50 rounded-xl border border-medical-border px-3 py-2.5 text-sm text-medical-text-secondary outline-none cursor-pointer">
+                        <option>全部时间</option>
+                        <option>今天</option>
+                        <option>近7天</option>
+                        <option>近30天</option>
+                    </select>
+                    <button class="bg-gray-50 rounded-xl border border-medical-border px-3 py-2.5 text-sm text-medical-text-secondary flex items-center gap-1 hover:bg-white transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m6-13.5L18 3m0 0L22.5 7.5M18 3v13.5"/></svg>
+                        排序
+                    </button>
+                </div>
+
+                <!-- Patient Table -->
+                <div class="bg-white rounded-2xl shadow-medical-sm border border-medical-border overflow-hidden">
+                    <div class="grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 text-xs text-medical-text-muted font-medium uppercase tracking-wider">
+                        <div class="col-span-3">患者信息</div>
+                        <div class="col-span-2">当前阶段</div>
+                        <div class="col-span-3">症状摘要</div>
+                        <div class="col-span-2">更新时间</div>
+                        <div class="col-span-2 text-right">操作</div>
+                    </div>
+                    <div class="divide-y divide-gray-100">
+                        <!-- Row 1 -->
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition cursor-pointer">
+                            <div class="col-span-3 flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">张</div>
+                                <div>
+                                    <div class="text-sm font-semibold">张三</div>
+                                    <div class="text-xs text-medical-text-muted font-mono">#4092</div>
+                                    <div class="flex gap-1 mt-0.5">
+                                        <span class="bg-medical-danger-light text-medical-danger text-xs rounded-full px-2 py-0.5">紧急</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-span-2">
+                                <span class="inline-flex items-center gap-1 bg-medical-primary-light text-medical-primary rounded-full px-3 py-1 text-xs font-medium">
+                                    <span class="w-2 h-2 bg-medical-primary rounded-full animate-pulse"></span>
+                                    评估复核
+                                </span>
+                            </div>
+                            <div class="col-span-3 text-sm text-medical-text-secondary truncate">头痛、发热、心悸，持续3天...</div>
+                            <div class="col-span-2 text-xs text-medical-text-muted">10分钟前</div>
+                            <div class="col-span-2 flex justify-end gap-2">
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.067l-4.684 1.336 1.336-4.684L16.862 4.487z"/></svg></button>
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg></button>
+                            </div>
+                        </div>
+                        <!-- Row 2 -->
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition cursor-pointer">
+                            <div class="col-span-3 flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">李</div>
+                                <div>
+                                    <div class="text-sm font-semibold">李四</div>
+                                    <div class="text-xs text-medical-text-muted font-mono">#4091</div>
+                                </div>
+                            </div>
+                            <div class="col-span-2">
+                                <span class="inline-flex items-center gap-1 bg-medical-accent-light text-medical-accent rounded-full px-3 py-1 text-xs font-medium">
+                                    <span class="w-2 h-2 bg-medical-accent rounded-full animate-pulse"></span>
+                                    分诊与接诊
+                                </span>
+                            </div>
+                            <div class="col-span-3 text-sm text-medical-text-secondary truncate">皮疹、瘙痒，面部红肿</div>
+                            <div class="col-span-2 text-xs text-medical-text-muted">1小时前</div>
+                            <div class="col-span-2 flex justify-end gap-2">
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.067l-4.684 1.336 1.336-4.684L16.862 4.487z"/></svg></button>
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg></button>
+                            </div>
+                        </div>
+                        <!-- Row 3 -->
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition cursor-pointer">
+                            <div class="col-span-3 flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">王</div>
+                                <div>
+                                    <div class="text-sm font-semibold">王五</div>
+                                    <div class="text-xs text-medical-text-muted font-mono">#4090</div>
+                                    <div class="flex gap-1 mt-0.5">
+                                        <span class="bg-medical-danger-light text-medical-danger text-xs rounded-full px-2 py-0.5">紧急</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-span-2">
+                                <span class="inline-flex items-center gap-1 bg-medical-warning-light text-medical-warning rounded-full px-3 py-1 text-xs font-medium">
+                                    <span class="w-2 h-2 bg-medical-warning rounded-full animate-pulse"></span>
+                                    诊断映射
+                                </span>
+                            </div>
+                            <div class="col-span-3 text-sm text-medical-text-secondary truncate">胸痛、呼吸困难，活动后加重</div>
+                            <div class="col-span-2 text-xs text-medical-text-muted">30分钟前</div>
+                            <div class="col-span-2 flex justify-end gap-2">
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.067l-4.684 1.336 1.336-4.684L16.862 4.487z"/></svg></button>
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg></button>
+                            </div>
+                        </div>
+                        <!-- Row 4 -->
+                        <div class="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition cursor-pointer">
+                            <div class="col-span-3 flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">赵</div>
+                                <div>
+                                    <div class="text-sm font-semibold">赵六</div>
+                                    <div class="text-xs text-medical-text-muted font-mono">#4089</div>
+                                </div>
+                            </div>
+                            <div class="col-span-2">
+                                <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-600 rounded-full px-3 py-1 text-xs font-medium">
+                                    <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                                    已完成
+                                </span>
+                            </div>
+                            <div class="col-span-3 text-sm text-medical-text-secondary truncate">腹痛、腹泻，伴有低热</div>
+                            <div class="col-span-2 text-xs text-medical-text-muted">2小时前</div>
+                            <div class="col-span-2 flex justify-end gap-2">
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.067l-4.684 1.336 1.336-4.684L16.862 4.487z"/></svg></button>
+                                <button class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"><svg class="w-4 h-4 text-medical-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/></svg></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex justify-between items-center mt-6 px-2">
+                    <div class="text-sm text-medical-text-muted">显示 1-4 条，共 128 条</div>
+                    <div class="flex gap-2">
+                        <button class="border border-medical-border rounded-lg px-3 py-1.5 text-sm text-medical-text-secondary hover:bg-white transition-colors disabled:opacity-50">上一页</button>
+                        <button class="bg-medical-primary text-white w-8 h-8 rounded-lg text-sm font-medium">1</button>
+                        <button class="hover:bg-gray-100 w-8 h-8 rounded-lg text-sm text-medical-text-secondary">2</button>
+                        <button class="hover:bg-gray-100 w-8 h-8 rounded-lg text-sm text-medical-text-secondary">3</button>
+                        <span class="text-medical-text-muted px-1">...</span>
+                        <button class="hover:bg-gray-100 w-8 h-8 rounded-lg text-sm text-medical-text-secondary">13</button>
+                        <button class="border border-medical-border rounded-lg px-3 py-1.5 text-sm text-medical-text-secondary hover:bg-white transition-colors">下一页</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
