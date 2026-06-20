@@ -131,7 +131,93 @@ flowchart TB
 
 ---
 
-## 4. 数据格式转换
+## 4. 记忆系统注入流 (W5 新增)
+
+```mermaid
+sequenceDiagram
+    participant User as 用户输入
+    participant Supervisor as SupervisorAgent.run_agent()
+    participant MM as MemoryManager
+    participant Semantic as SemanticMemory (PG)
+    participant Episodic as EpisodicMemory (PG)
+    participant Working as WorkingMemory (Redis)
+    participant Agent as DoctorAgent
+
+    User->>Supervisor: context = {symptoms, patient_id}
+    Supervisor->>MM: retrieve(patient_id, query)
+    MM->>Semantic: format_profile() → 过敏史/既往史
+    MM->>Episodic: format_history() → 历史就诊SOAP
+    MM-->>Supervisor: patient_memory text
+    Supervisor->>Working: get_current_agent(session_id)
+    Working-->>Supervisor: "doctor"
+    Supervisor->>Agent: context.patient_memory = "患者档案:..."
+    Agent->>Agent: run(context) 含记忆注入
+```
+
+### Session → Redis 持久化
+```
+SupervisorAgent.run_agent() 每次调用:
+  ├── memory_manager.get_current_agent(session_id)  → Redis
+  ├── memory_manager.get_context(session_id)         → Redis
+  ├── 注入 patient_memory (Episodic + Semantic)
+  ├── run agent
+  └── memory_manager.update_context(session_id, manifest.context) → Redis
+```
+
+### SOAP 存储流
+```
+问诊完成 → POST /consult/{id}/complete
+  ├── memory_manager.store_consultation()
+  │     ├── 更新 Consultation 表: subjective/objective/assessment/plan
+  │     └── status = "completed"
+  └── supervisor.clear_session()
+        ├── 清除内存 dict
+        └── memory_manager.delete_session() → Redis
+```
+
+---
+
+## 5. Guardrail 数据流 (W7 新增)
+
+```mermaid
+flowchart LR
+    subgraph Input["用户输入"]
+        Text["症状/对话文本"]
+    end
+    
+    subgraph Guardrails["安全护栏层"]
+        ED["EmergencyDetector<br/>关键词→正则→LLM"]
+        PII["PIISanitizer<br/>正则脱敏"]
+        IV["IdentityVerifier<br/>ID校验+JWT"]
+    end
+    
+    subgraph Supervisor["编排层"]
+        SA["SupervisorAgent<br/>构建context"]
+        MI["Memory注入<br/>患者画像+历史"]
+    end
+    
+    subgraph Agent["Agent Pipeline"]
+        TA["TriageAgent"]
+        DA["DoctorAgent + Skill"]
+        RA["ReviewAgent"]
+        FA["FollowupAgent"]
+    end
+    
+    Text --> ED
+    ED -->|"紧急!"| EM["前端Emergency事件<br/>急救指引展示"]
+    ED -->|"正常"| PII
+    PII --> IV
+    IV --> SA
+    SA --> MI
+    MI --> TA
+    TA --> DA
+    DA --> RA
+    RA --> FA
+```
+
+---
+
+## 6. 数据格式转换
 
 ```
 用户输入 (string)

@@ -1,3 +1,5 @@
+
+
 """ConsultationGraph — LangGraph-based state graph for the consultation pipeline.
 
 Nodes (agents) registered:
@@ -42,7 +44,9 @@ class ConsultationGraph:
             "followup": "END",
             "coordinator": "review",
         }
+        # callable: 可调用对象，用于处理状态图中的节点,可以是函数、方法、类等，必须返回一个状态更新
         self.nodes: dict[str, callable] = {}
+
         self.app = None
 
     def add_node(self, name: str, fn: callable):
@@ -74,13 +78,36 @@ class ConsultationGraph:
         return self.app
 
     async def ainvoke(self, initial_state: dict[str, Any]) -> dict[str, Any]:
-        """Run the graph asynchronously and return the final state."""
+        """
+        Run the graph asynchronously and return the final state.
+        核心作用 ：
+
+        - 异步执行整个问诊流程，从入口节点开始，直到流程结束
+        - 返回最终的GraphState状态，包含所有节点的处理结果
+        - 自动处理图的构建（如果尚未构建）
+        使用场景 ：
+
+        - 适合不需要实时中间结果的批量处理场景
+        - 后端服务调用，只需最终诊断结果
+        - 测试和验证整个流程的正确性
+        """
         if self.app is None:
             self.build()
         return await self.app.ainvoke(initial_state)
 
     async def astream(self, initial_state: dict[str, Any]):
-        """Run the graph and yield (node_name, state_update) tuples."""
+        """
+        Run the graph and yield (node_name, state_update) tuples.
+        核心作用 ：
+        - 异步执行问诊流程，但以流的形式返回每个节点的处理结果
+        - 每次节点执行完成后，立即返回该节点的状态更新
+        - 适合需要实时展示中间过程的场景
+        使用场景 ：
+        - 前端实时展示问诊进度（如"正在分诊→正在诊断→正在审核"）
+        - 调试和监控流程执行过程
+        - 需要实时获取中间结果进行处理的场景
+        
+        """
         if self.app is None:
             self.build()
         async for event in self.app.astream(initial_state):

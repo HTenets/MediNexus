@@ -15,8 +15,8 @@
 **Request:**
 ```json
 {
-  "patient_id": "string | null",     // null → 自动创建
-  "symptoms": "string"               // 患者主诉
+  "patient_id": "string | null",
+  "symptoms": "string"
 }
 ```
 
@@ -30,10 +30,6 @@
   "created_at": "2026-06-01T12:00:00"
 }
 ```
-
-**错误:** 无 (自动生成 patient_id)
-
----
 
 ### GET `/api/v1/consult/{consult_id}`
 查询问诊会话状态和最近历史。
@@ -52,27 +48,52 @@
 }
 ```
 
-**错误:** status="not_found" 时表示会话不存在
+### POST `/api/v1/consult/{consult_id}/complete`
+完成问诊并提交 SOAP 数据作为情景记忆。
 
----
-
-### GET `/api/v1/patients/{id}`
-获取患者信息。(🏗 建设中)
-
----
-
-### GET `/api/v1/records/{id}`
-获取医疗记录。(🏗 建设中)
-
----
-
-### GET `/health`
-健康检查。
+**Request:**
+```json
+{
+  "subjective": "头痛两天，伴低热",
+  "objective": "体温37.8°C，咽部充血",
+  "assessment": "急性上呼吸道感染",
+  "plan": "对症处理，休息补液",
+  "diagnosis": "感冒"
+}
+```
 
 **Response (200):**
 ```json
-{"status": "ok"}
+{
+  "session_id": "session_abc123...",
+  "status": "completed",
+  "message": "就诊已完成，病历已保存"
+}
 ```
+
+### GET `/api/v1/consult/{consult_id}/history`
+获取患者历史就诊记录。
+
+### GET `/health`
+健康检查。 → `{"status": "ok"}`
+
+---
+
+## Mock API (开发用)
+
+所有 mock 端点挂载在 `/api/v1/mock/` 下，返回硬编码假数据。
+
+| 端点 | 参数 | 用途 |
+|------|------|------|
+| `GET /mock/knowledge-cases` | `?query=` | 按症状返回临床病例 |
+| `GET /mock/knowledge-theory` | `?query=` | 医学理论/指南 |
+| `GET /mock/knowledge-papers` | `?query=` | 前沿论文摘要 |
+| `GET /mock/consultation/{id}` | — | SOAP 就诊数据 |
+| `GET /mock/records/{patient_id}` | — | 患者历史记录 |
+| `GET /mock/profile/{patient_id}` | — | 患者档案 + AI 记忆 |
+| `GET /mock/dashboard/{patient_id}` | — | 体征 + 风险 + 建议 |
+| `GET /mock/system-status` | — | 服务健康状态 |
+| `GET /mock/patients` | — | 患者列表 |
 
 ---
 
@@ -81,74 +102,53 @@
 ### WS `/ws/{session_id}`
 流式对话端点。
 
-**协议:**
-
-客户端 → 服务器:
+**客户端 → 服务端:**
 ```json
 {"type": "message", "content": "我头痛两天了"}
 ```
 
-服务器 → 客户端 (5 种事件类型):
+**服务端 → 客户端 (6 种事件):**
 
 | event | data | 说明 |
 |-------|------|------|
-| `agent_start` | `{"agent": "triage"}` | 表示某 Agent 开始处理 |
-| `token` | `{"token": "..."}` | 逐字输出的流式文本 |
-| `agent_end` | `{"summary": "...", "manifest": {...}}` | Agent 处理完成, 携带 HandoverManifest |
-| `error` | `{"message": "...", "code": "..."}` | 错误消息 |
-| `info` | `{"message": "..."}` | 信息通知 (欢迎语等) |
-| `emergency` | `{"type":"emergency", "message":"...", "actions":["..."]}` | **紧急情况** (演示级, 不接真实急救) |
+| `agent_start` | `{"agent": "triage"}` | Agent 开始处理 |
+| `token` | `{"token": "..."}` | 逐字流式输出 |
+| `agent_end` | `{"summary": "...", "manifest": {...}}` | 处理完成 |
+| `error` | `{"message": "...", "code": "..."}` | 错误 |
+| `info` | `{"message": "..."}` | 系统通知 |
+| `emergency` | `{"type":"emergency", "message":"...", "actions":[...]}` | 🚨 紧急 (演示级) |
 
 ---
 
 ## 数据模型
 
-### HandoverManifest (Agent 通信协议)
+### HandoverManifest
 ```python
 class HandoverManifest(BaseModel):
-    facts: list[str] = []                # 已确定的事实/结论
-    pending_questions: list[str] = []     # 还需收集的信息
-    risk_flags: list[str] = []           # 风险标记 (如 EMERGENCY_DETECTED)
-    evidence_level: str = "C"            # A=指南 B=共识 C=LLM生成
-    context: dict[str, Any] = {}         # 跨 Agent 共享上下文
+    facts: list[str] = []
+    pending_questions: list[str] = []
+    risk_flags: list[str] = []
+    evidence_level: str = "C"   # A=指南 B=共识 C=LLM
+    context: dict[str, Any] = {}
 ```
 
-### SessionState (会话状态)
+### SOAPCompletionRequest
+```python
+class SOAPCompletionRequest(BaseModel):
+    subjective: str = ""     # 主诉
+    objective: str = ""      # 查体
+    assessment: str = ""     # 诊断
+    plan: str = ""           # 方案
+    diagnosis: str = ""      # 诊断结论
+```
+
+### SessionState
 ```python
 @dataclass
 class SessionState:
     session_id: str
     patient_id: str
-    current_agent: str = "triage"        # 当前处理 Agent
-    history: list[dict] = field(...)     # 对话历史
-    context: dict[str, Any] = field(...) # 累积上下文
+    current_agent: str = "triage"
+    history: list[dict] = field(default_factory=list)
+    context: dict[str, Any] = field(default_factory=dict)
 ```
-
-### GraphState (LangGraph TypedDict)
-```python
-class GraphState(TypedDict):
-    session_id: str
-    patient_id: str
-    current_agent: str
-    messages: list[dict]
-    context: dict[str, Any]
-    pending_questions: list[str]
-    risk_flags: list[str]
-    evidence_level: str                  # A/B/C
-    agent_output: Optional[str]          # 流式输出
-    error: Optional[str]                 # 错误信息
-```
-
----
-
-## 重要设计约束
-
-### 免责声明要求
-- 患者自助问诊场景 → 每个 `HandoverManifest` 的 `facts` 末尾追加医疗免责声明
-- 紧急情况 (`EMERGENCY_DETECTED`) → 免责声明替换为急救指引
-- 详见 `CONVENTIONS.md` 第 1b 节
-
-### BYO Key 原则
-- 项目不内置 API Key
-- 用户通过 `.env` 配置 (`MEDINEXUS_LLM_PROVIDER`, `MEDINEXUS_OPENAI_KEY`, 等)
-- 无 Key 时自动降级到规则引擎, 响应中标注降级模式

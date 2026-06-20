@@ -83,16 +83,16 @@ flowchart LR
 
 | 文件 | 直接导入 |
 |------|---------|
-| `agents/__init__.py` | `agents.base`, `agents.registry` |
+| `agents/__init__.py` | `agents.base`, `agents.registry`, `agents.triage.agent`, `agents.doctor.agent`, `agents.review.agent`, `agents.coordinator.agent`, `agents.followup.agent` |
 | `agents/base.py` | `app.schemas.agent` |
 | `agents/registry.py` | `agents.base`, `app.schemas.agent` |
 | `agents/triage/agent.py` | `agents.base`, `agents.registry`, `app.schemas.agent`, `agents.triage.prompt` |
-| `agents/doctor/agent.py` | `agents.base`, `app.schemas.agent` |
+| `agents/doctor/agent.py` | `agents.base`, `agents.registry`, `app.schemas.agent`, `agents.doctor.prompt`, `agents.doctor.diagnosis_flow`, `agents.doctor.skills.registry`, `agents.doctor.skills.loader` |
 | `agents/doctor/diagnosis_flow.py` | (无) |
-| `agents/review/agent.py` | `agents.base`, `app.schemas.agent` |
-| `agents/coordinator/agent.py` | `agents.base`, `app.schemas.agent` |
-| `agents/followup/agent.py` | `agents.base`, `app.schemas.agent` |
-| `orchestration/supervisor.py` | `agents.registry`, `app.schemas.agent`, `orchestration.state` |
+| `agents/review/agent.py` | `agents.base`, `agents.registry`, `app.schemas.agent` |
+| `agents/coordinator/agent.py` | `agents.base`, `agents.registry`, `app.schemas.agent`, `agents.coordinator.consultation_protocol`, `agents.doctor.skills.registry`, `agents.doctor.skills.loader` |
+| `agents/followup/agent.py` | `agents.base`, `agents.registry`, `app.schemas.agent`, `agents.followup.scheduler` |
+| `orchestration/supervisor.py` | `agents.registry`, `app.schemas.agent`, `orchestration.state`, `memory.manager` |
 | `orchestration/graph.py` | `langgraph.graph`, `orchestration.state` |
 | `orchestration/state.py` | (无) |
 | `orchestration/stream.py` | (无) |

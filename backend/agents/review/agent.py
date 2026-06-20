@@ -30,7 +30,7 @@ class ReviewAgent(BaseAgent):
         diagnosis_context = context.get("diagnosis", {})
         doctor_facts = context.get("doctor_facts", [])
         risk_flags = context.get("risk_flags", [])
-        prescription = context.get("prescription", {})
+        prescription = context.get("prescription", {}) # 处方
 
         facts = []
         pending_questions = []

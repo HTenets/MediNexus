@@ -3,7 +3,7 @@
 > 此文件是项目代码结构的权威索引。AI 在修改代码前应查阅此文件理解模块职责与边界。
 > 状态标记: ✅ 已完成 | 🏗 进行中 | 📋 待实现 | 🔌 预留接口
 > 决策基线: 患者自助问诊(A) | 参考级准确度 | Ollama 默认 + BYO Key 降级 | 中文为主英文备用 | 紧急演示级
-> 详细设计决策见 `BUILD_STATUS.md` 总体进度章节和 `CONVENTIONS.md` 第 1a-1d 节。
+> 版本: v0.1.0 (2026-06-19)
 
 ---
 
@@ -13,21 +13,11 @@
 
 | 文件 | 职责 | 关键导出 | 依赖 | 状态 |
 |------|------|---------|------|------|
-| `__init__.py` | 包入口, 导出 BaseAgent + AgentRegistry | `BaseAgent, AgentRegistry, registry` | base.py, registry.py | ✅ |
+| `__init__.py` | 包入口, 导入所有 Agent 触发注册 | `BaseAgent, AgentRegistry, registry` | base.py, registry.py, triage/agent, doctor/agent | ✅ |
 | `base.py` | Agent 抽象基类, 定义生命周期和 Tool 接口 | `class BaseAgent(ABC)` | `HandoverManifest` | ✅ |
 | `registry.py` | 全局 Agent 注册中心 (单例) | `class AgentRegistry`, `registry` 实例 | BaseAgent | ✅ |
 
-#### BaseAgent 生命周期
-
-```
-context → on_pre_process(context) → run(context) → on_post_process(manifest) → HandoverManifest
-```
-
-- `run(context: dict) -> HandoverManifest` — 抽象方法, 子类必须实现
-- `on_pre_process(context) -> context` — Plugin 注入点 (身份验证/PII 脱敏等)
-- `on_post_process(manifest) -> manifest` — Plugin 注入点 (审计/增强等)
-- `register_tool(name, fn)` — 注册可调用工具
-- `execute_tool(name, **kwargs)` — 执行已注册工具
+**已注册 Agent:** triage, doctor, review, coordinator, followup — 共 5 个
 
 ---
 
@@ -35,14 +25,8 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 
 | 文件 | 职责 | 关键导出 | 状态 |
 |------|------|---------|------|
-| `agent.py` | TriageAgent 实现: 症状评估/科室分诊/紧急度判断 | `class TriageAgent(BaseAgent)` | ✅ |
+| `agent.py` | TriageAgent: 症状评估/科室分诊/紧急度判断 | `class TriageAgent(BaseAgent)` | ✅ |
 | `prompt.py` | 系统提示词 (中英双语) | `TRIAGE_SYSTEM_PROMPT`, `TRIAGE_EXTRACTION_PROMPT` | ✅ |
-
-**接口:**
-- `run(context) -> HandoverManifest(context.triage_result)`
-- `triage_result` 格式: `{urgency, department, reason, key_info_gaps[]}`
-- 双模式: LLM 智能分诊 ↔ 关键词降级分诊
-- 紧急度层级: `emergency > urgent > routine`
 
 ---
 
@@ -50,8 +34,8 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 
 | 文件 | 职责 | 关键导出 | 状态 |
 |------|------|---------|------|
-| `agent.py` | DoctorAgent (完整: LLM + 规则引擎双模式, Skill 集成, 降级标注) | `class DoctorAgent(BaseAgent)` | ✅ |
-| `prompt.py` | 诊断提示词 (Ollama 优化: 结构化 JSON 输出, 中英双语) | — | ✅ |
+| `agent.py` | DoctorAgent (LLM + 规则双模式, Skill 集成, 降级标注) | `class DoctorAgent(BaseAgent)` | ✅ |
+| `prompt.py` | 诊断提示词 (Ollama 优化: 结构化 JSON 输出) | `DIAGNOSIS_SYSTEM_PROMPT` | ✅ |
 | `diagnosis_flow.py` | 诊断状态机定义 | `DiagnosisState` (INITIAL→HISTORY_TAKING→DIFFERENTIAL→TREATMENT→COMPLETED) | ✅ |
 
 #### Skill 子系统 `backend/agents/doctor/skills/`
@@ -61,10 +45,10 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 | `base.py` | Skill 抽象基类 (system_prompt + knowledge + tools + match_symptoms) | ✅ |
 | `loader.py` | Skill 动态加载器 (内置 4 个 Skill, 外部加载预留 v0.3.0+) | ✅ |
 | `registry.py` | Skill 注册中心 (含 auto_route: 科室匹配→症状评分→首注册降级) | ✅ |
-| `builtin/internal_medicine/skill.py` | 内科 Skill — 呼吸/消化/心血管/内分泌知识 + 中英双语提示词 | ✅ |
-| `builtin/dermatology/skill.py` | 皮肤科 Skill — 湿疹/荨麻疹/痤疮/真菌感染知识 | ✅ |
-| `builtin/ent/skill.py` | 耳鼻喉科 Skill — 耳/鼻/咽喉常见病知识 | ✅ |
-| `builtin/mental_health/skill.py` | 心理科 Skill (含 PHQ-9/GAD-7 计算器 + 自杀危机检测) | ✅ |
+| `builtin/internal_medicine/skill.py` | 内科 Skill — 呼吸/消化/心血管/内分泌 | ✅ |
+| `builtin/dermatology/skill.py` | 皮肤科 Skill — 湿疹/荨麻疹/痤疮/真菌 | ✅ |
+| `builtin/ent/skill.py` | 耳鼻喉科 Skill — 耳/鼻/咽喉常见病 | ✅ |
+| `builtin/mental_health/skill.py` | 心理科 Skill — PHQ-9/GAD-7 + 自杀危机检测 | ✅ |
 
 ---
 
@@ -72,8 +56,8 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 
 | 文件 | 职责 | 关键导出 | 状态 |
 |------|------|---------|------|
-| `agent.py` | ReviewAgent (独立 RAG 验证: 检索知识库对比诊断, 鉴别诊断检查, 证据等级评估) | `class ReviewAgent(BaseAgent)` | ✅ |
-| `prompt.py` | 审查提示词 (8 维审查: 药物相互作用/禁忌症/剂量/过敏/证据/重复/年龄/妊娠) | — | 🏗 |
+| `agent.py` | ReviewAgent (独立 RAG 验证 + 鉴别诊断检查 + 证据等级) | `class ReviewAgent(BaseAgent)` | ✅ |
+| `prompt.py` | 审查提示词 (8 维审查描述) | `REVIEW_PROMPT` | 🏗 |
 | `rules/drug_interaction.py` | 药物相互作用检查规则 | — | 📋 |
 | `rules/contraindication.py` | 禁忌症检查规则 | — | 📋 |
 | `checkers/__init__.py` | 可插拔检查器骨架 | — | 📋 |
@@ -84,9 +68,9 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 
 | 文件 | 职责 | 关键导出 | 状态 |
 |------|------|---------|------|
-| `agent.py` | CoordinatorAgent (多科室会诊协调) | `class CoordinatorAgent(BaseAgent)` | 🏗 |
-| `prompt.py` | 会诊提示词 | — | 📋 |
-| `consultation_protocol.py` | 会诊协议/状态机 | — | 📋 |
+| `agent.py` | CoordinatorAgent (多科室会诊: 6 种复杂性触发器 + 专科意见收集 + 综合报告) | `class CoordinatorAgent(BaseAgent)` | ✅ |
+| `prompt.py` | 会诊提示词 | `COORDINATOR_SYSTEM_PROMPT` | ✅ |
+| `consultation_protocol.py` | 会诊协议: 7 阶段状态机 + SpecialistOpinion + ConsultationReport | `ConsultationPhase`, `SpecialistOpinion`, `ConsultationReport` | ✅ |
 
 ---
 
@@ -94,9 +78,9 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 
 | 文件 | 职责 | 关键导出 | 状态 |
 |------|------|---------|------|
-| `agent.py` | FollowupAgent (随访管理) | `class FollowupAgent(BaseAgent)` | 🏗 |
-| `prompt.py` | 随访提示词 | — | 📋 |
-| `scheduler.py` | 随访计划调度 | — | 📋 |
+| `agent.py` | FollowupAgent (随访计划 + 用药提醒 + 5 种计划模板) | `class FollowupAgent(BaseAgent)` | ✅ |
+| `prompt.py` | 随访提示词 | `FOLLOWUP_SYSTEM_PROMPT` | ✅ |
+| `scheduler.py` | 随访排程器 (generate_schedule + get_plan_for_diagnosis) | `FollowupPlan`, `ScheduledFollowup`, `generate_schedule()` | ✅ |
 
 ---
 
@@ -106,17 +90,8 @@ context → on_pre_process(context) → run(context) → on_post_process(manifes
 |------|------|---------|------|------|
 | `state.py` | 会话状态 + LangGraph TypedDict | `SessionState`, `GraphState` | — | ✅ |
 | `graph.py` | ConsultationGraph (LangGraph 状态图构建) | `class ConsultationGraph` | GraphState | ✅ |
-| `supervisor.py` | SupervisorAgent (路由 + 会话管理) | `class SupervisorAgent` | AgentRegistry, SessionState, HandoverManifest | ✅ |
+| `supervisor.py` | SupervisorAgent (Redis 会话 + MemoryManager 注入 + 路由) | `class SupervisorAgent` | AgentRegistry, HandoverManifest, MemoryManager | ✅ |
 | `stream.py` | StreamManager (流式事件处理) | `class StreamManager` | — | ✅ |
-
-#### 会话路由逻辑 (supervisor.py)
-
-```
-triage → (emergency → 原地紧急处理)
-       → (routine) → doctor → (需审查) → review → followup → complete
-                            → (无需审查) → followup → complete
-       → coordinator → review → (不通过→回到doctor) → followup → complete
-```
 
 ---
 
@@ -126,18 +101,19 @@ triage → (emergency → 原地紧急处理)
 |------|------|------|
 | `main.py` | FastAPI 入口 + WebSocket 端点 | ✅ |
 | `config.py` | pydantic-settings 配置 (env_prefix=MEDINEXUS_) | ✅ |
-| `api/router.py` | 路由汇总 | ✅ |
-| `api/consultation.py` | 问诊 API + WebSocket 处理 | ✅ |
+| `api/router.py` | 路由汇总 (含 mock_data 注册) | ✅ |
+| `api/consultation.py` | 问诊 API + WebSocket + SOAP complete | ✅ |
+| `api/mock_data.py` | 10 个 mock 端点 (三路知识源/SOAP/档案/Dashboard/状态/患者) | ✅ |
 | `api/patients.py` | 患者 API | 🏗 |
 | `api/medical_records.py` | 病历 API | 🏗 |
 | `api/health.py` | 健康检查 | ✅ |
 | `core/database.py` | PostgreSQL 连接 (SQLAlchemy async) | ✅ |
-| `core/redis.py` | Redis 连接 | 🏗 |
-| `core/auth.py` | OAuth 2.0 + JWT | 📋 |
-| `core/security.py` | PII 脱敏/加密 | 📋 |
+| `core/redis.py` | Redis 连接 | ✅ |
+| `core/auth.py` | JWT 认证 | 🏗 |
+| `core/security.py` | PII 脱敏/加密 | 🏗 |
 | `core/dependencies.py` | FastAPI 依赖注入 | 📋 |
-| `middlewares/auth.py` | 认证中间件 | 📋 |
-| `middlewares/logging.py` | 请求日志中间件 | 🏗 |
+| `middlewares/auth.py` | 认证中间件 (JWT 可选, Demo 模式跳过) | ✅ |
+| `middlewares/logging.py` | 请求日志中间件 | ✅ |
 | `middlewares/rate_limit.py` | 限流中间件 | 📋 |
 
 ---
@@ -146,12 +122,12 @@ triage → (emergency → 原地紧急处理)
 
 | 文件 | 表名 | 关键字段 | 状态 |
 |------|------|---------|------|
-| `patient.py` | `patients` | id, name, dob, gender, allergies, history | ✅ |
-| `consultation.py` | `consultations` | id, patient_id, status, diagnosis, created_at | ✅ |
+| `patient.py` | `patients` | id, name, gender, dob, phone, created_at | ✅ |
+| `consultation.py` | `consultations` | id, patient_id, status, subjective, objective, assessment, plan, diagnosis | ✅ |
 | `prescription.py` | `prescriptions` | — | 🏗 |
-| `medical_history.py` | `medical_histories` | — | 🏗 |
-| `followup.py` | `followups` (预留表) | — | 📋 |
-| `audit_log.py` | `audit_logs` | — | 📋 |
+| `medical_history.py` | `medical_histories` | id, patient_id, history_type, content(JSON) | ✅ |
+| `followup.py` | `followups` | id, patient_id, consultation_id, status, notes | 🏗 |
+| `audit_log.py` | `audit_logs` | id, action, details(JSON), created_at | ✅ |
 
 ---
 
@@ -160,9 +136,9 @@ triage → (emergency → 原地紧急处理)
 | 文件 | 关键模型 | 状态 |
 |------|---------|------|
 | `agent.py` | `HandoverManifest` (facts, pending_questions, risk_flags, evidence_level, context) | ✅ |
-| `consultation.py` | `ConsultationStartRequest`, `ConsultationStartResponse`, `ConsultationStatusResponse` | ✅ |
+| `consultation.py` | `ConsultationStartRequest/Response`, `ConsultationStatusResponse`, `SOAPCompletionRequest` | ✅ |
 | `patient.py` | 患者 Pydantic 模型 | 🏗 |
-| `memory.py` | 记忆数据格式 | 📋 |
+| `memory.py` | `MemoryEntry` (session_id, patient_id, content, memory_type) | ✅ |
 
 ---
 
@@ -181,15 +157,15 @@ triage → (emergency → 原地紧急处理)
 
 | 文件 | 职责 | 关键导出 | 依赖 | 状态 |
 |------|------|---------|------|------|
-| `__init__.py` | 包入口, 导出所有知识库组件 | 全部 15+ 公共类/函数 | — | ✅ |
-| `source.py` | 三路知识源定义 (病例/理论/论文) + 置信度配置 + 数据结构 | `SourceType`, `SourceConfig`, `RetrievedChunk`, `FusionResult`, `SOURCE_CONFIGS` | — | ✅ |
-| `chunker.py` | 差异化分块策略 (semantic/hierarchical/recursive) | `SemanticChunker`, `HierarchicalChunker`, `RecursiveChunker`, `get_chunker()` | source.py | ✅ |
-| `vector_store.py` | Qdrant 多集合搜索/创建/upsert | `VectorStore` | qdrant_client | ✅ |
-| `bm25_fallback.py` | BM25 全文搜索降级 (自实现 BM25Okapi + 中文分词) | `BM25Index`, `BM25Fallback` | — | ✅ |
-| `retriever.py` | 多源融合检索: RRF 源内融合 + Z-score 跨源标准化 + 置信度加权 | `MultiSourceRetriever` | source.py, vector_store.py, bm25_fallback.py | ✅ |
+| `__init__.py` | 包入口 | 全部 15+ 公共类/函数 | — | ✅ |
+| `source.py` | 三路知识源定义 + 置信度配置 + 数据结构 | `SourceType`, `SourceConfig`, `RetrievedChunk`, `FusionResult` | — | ✅ |
+| `chunker.py` | 差异化分块策略 (semantic/hierarchical/recursive) | `SemanticChunker`, `HierarchicalChunker`, `RecursiveChunker` | source.py | ✅ |
+| `vector_store.py` | Qdrant 多集合 CRUD | `VectorStore` | qdrant_client | ✅ |
+| `bm25_fallback.py` | BM25 全文搜索降级 | `BM25Index`, `BM25Fallback` | — | ✅ |
+| `retriever.py` | 多源融合检索: RRF + Z-score + 置信度加权 | `MultiSourceRetriever` | source.py, vector_store.py, bm25_fallback.py | ✅ |
 | `rag.py` | RAGQuery 主入口: 三路召回 + 融合 + LLM Context 格式化 | `RAGQuery` | retriever.py, graph/ | ✅ |
-| `graph_rag.py` | GraphRAGQuery (接口与 RAGQuery 同构, 当前包装 RAG + KG) | `GraphRAGQuery` | rag.py | ✅ |
-| `loader.py` | 文档加载 Pipeline + 种子数据 (3 病例/3 理论/2 论文) | `DocumentLoader`, `SEED_CLINICAL_CASES`, `SEED_MEDICAL_THEORY`, `SEED_PAPER_ABSTRACTS` | chunker.py, vector_store.py | ✅ |
+| `graph_rag.py` | GraphRAGQuery (接口预留, 包装 RAG + KG) | `GraphRAGQuery` | rag.py | ✅ |
+| `loader.py` | 文档加载 Pipeline + 种子数据 | `DocumentLoader`, `SEED_*` | chunker.py, vector_store.py | ✅ |
 
 #### 知识图谱子系统 `backend/knowledge/graph/`
 
@@ -197,7 +173,7 @@ triage → (emergency → 原地紧急处理)
 |------|------|------|
 | `__init__.py` | 包入口 | ✅ |
 | `client.py` | KnowledgeGraph: 症状→疾病一跳映射, Neo4j 就绪/内存兜底 | ✅ |
-| `symptom_graph.py` | SymptomGraphBuilder: 种子数据 (100+ 症状-疾病关系), JSON 导入/导出 | ✅ |
+| `symptom_graph.py` | SymptomGraphBuilder: 100+ 症状-疾病关系, JSON 导出 | ✅ |
 
 ---
 
@@ -205,10 +181,10 @@ triage → (emergency → 原地紧急处理)
 
 | 文件 | 职责 | 状态 |
 |------|------|------|
-| `manager.py` | MemoryManager (三层记忆协调) | 📋 |
-| `working.py` | 工作记忆 (Redis TTL) | 📋 |
-| `stores/episodic.py` | 情景记忆 (历史就诊) | 📋 |
-| `stores/semantic.py` | 语义记忆 (患者画像) | 📋 |
+| `manager.py` | MemoryManager (三层记忆统一检索 + 会话代理) | ✅ |
+| `working.py` | 工作记忆 (Redis: current_agent + context, TTL 3600s) | ✅ |
+| `stores/episodic.py` | 情景记忆 (PostgreSQL 历史就诊 SOAP) | ✅ |
+| `stores/semantic.py` | 语义记忆 (PostgreSQL 患者画像) | ✅ |
 
 ---
 
@@ -216,9 +192,9 @@ triage → (emergency → 原地紧急处理)
 
 | 文件 | 职责 | 状态 |
 |------|------|------|
-| `emergency_detector.py` | 紧急信号检测 (关键词+语义, 中英双语) | 🏗 |
-| `pii_sanitizer.py` | PII 脱敏 | 📋 |
-| `identity_verifier.py` | 身份验证 | 📋 |
+| `emergency_detector.py` | 紧急信号检测 (50+ 关键词 + 7 条正则 + 5 类响应) | ✅ |
+| `pii_sanitizer.py` | PII 脱敏 (手机/身份证/邮箱/座机 + 掩码) | ✅ |
+| `identity_verifier.py` | 身份验证 (ID 校验 + JWT 可注入 + 审计日志) | ✅ |
 
 ---
 
@@ -234,17 +210,38 @@ triage → (emergency → 原地紧急处理)
 
 | 文件/目录 | 职责 | 状态 |
 |-----------|------|------|
-| `src/app/page.tsx` | 首页 | ✅ |
 | `src/app/layout.tsx` | 全局布局 | ✅ |
-| `src/app/consultation/page.tsx` | 问诊对话页 | 🏗 |
-| `src/app/records/page.tsx` | 病历页 | 🏗 |
-| `src/app/profile/page.tsx` | 个人中心 | 🏗 |
-| `src/components/chat/ChatContainer.tsx` | 对话容器 | ✅ |
-| `src/components/chat/ChatMessage.tsx` | 消息气泡 | ✅ |
-| `src/components/chat/ChatInput.tsx` | 输入框 | ✅ |
-| `src/lib/api.ts` | API 客户端 | ✅ |
-| `src/lib/websocket.ts` | WebSocket 客户端 (含自动重连) | ✅ |
-| `src/stores/` | 状态管理 | 📋 |
+| `src/app/globals.css` | Tailwind 入口 + web-design 设计令牌 | ✅ |
+| `src/app/page.tsx` | 首页 (营销 + 9 功能卡片) | ✅ |
+| `src/app/consultation/page.tsx` | 问诊对话页 (WebSocket 实时 + Agent 阶段指示器 + 快捷症状) | ✅ |
+| `src/app/consultation/analysis/page.tsx` | 多维知识源分析 (三路 API) | ✅ |
+| `src/app/consultation/review/page.tsx` | 方案合规复核 (SOAP + 禁忌症) | ✅ |
+| `src/app/summary/page.tsx` | 问诊总结 (SOAP 记录) | ✅ |
+| `src/app/records/page.tsx` | 健康档案 (mock API) | ✅ |
+| `src/app/profile/page.tsx` | 个人中心 (mock API) | ✅ |
+| `src/app/dashboard/page.tsx` | 数字孪生全景 (mock API) | ✅ |
+| `src/app/patients/page.tsx` | 患者管理 (mock API) | ✅ |
+| `src/app/system-status/page.tsx` | 系统状态 (mock API) | ✅ |
+| `src/app/settings/page.tsx` | 设置 (React 组件) | ✅ |
+| `src/app/upload-report/page.tsx` | 报告上传 (拖拽) | ✅ |
+| `src/app/login/page.tsx` | 登录页 (角色选择 + 表单) | ✅ |
+| `src/app/design-preview/page.tsx` | 设计预览索引 | ✅ |
+| `src/components/layout/AppShell.tsx` | Sidebar + TopBar 布局壳 | ✅ |
+| `src/components/ui/NavBar.tsx` | 导航栏 (已废弃, 被 AppShell 替代) | 🔌 |
+| `src/components/ui/DisclaimerBanner.tsx` | 医疗免责声明 (standard/emergency) | ✅ |
+| `src/components/ui/LoadingState.tsx` | 加载态 | ✅ |
+| `src/components/ui/ErrorState.tsx` | 错误态 | ✅ |
+| `src/components/ui/EmptyState.tsx` | 空态 | ✅ |
+| `src/components/chat/ChatContainer.tsx` | 对话容器 (WebSocket 事件绑定) | ✅ |
+| `src/components/chat/ChatMessage.tsx` | 消息气泡 (Agent 标签 + 流式渲染) | ✅ |
+| `src/components/chat/ChatInput.tsx` | 输入框 (自动缩放 + Enter 发送) | ✅ |
+| `src/lib/api.ts` | REST API 客户端 | ✅ |
+| `src/lib/websocket.ts` | WebSocket 客户端 (自动重连 + 6 事件) | ✅ |
+| `src/stores/consultationStore.ts` | 状态管理 (预留) | 🔌 |
+| `tailwind.config.js` | 自定义颜色 medical-* + 字体 | ✅ |
+| `postcss.config.js` | PostCSS 插件 | ✅ |
+| `next.config.js` | API 代理 | ✅ |
+| `Dockerfile` | 多阶段构建 | ✅ |
 
 ---
 
@@ -252,21 +249,33 @@ triage → (emergency → 原地紧急处理)
 
 | 文件 | 职责 | 状态 |
 |------|------|------|
-| `sdk/base.py` | BasePlugin 抽象类 (initialize/shutdown) | 📋 |
-| `sdk/hooks.py` | PluginHooks (on_agent_pre_process / on_agent_post_process) | 📋 |
-| `examples/drug_lookup/` | 药品查询插件示例 | 📋 |
+| `sdk/base.py` | BasePlugin 抽象类 (initialize/shutdown) | 🔌 (v0.3.0+) |
+| `sdk/hooks.py` | PluginHooks (on_agent_pre_process / on_agent_post_process) | 🔌 (v0.3.0+) |
+| `examples/drug_lookup/` | 药品查询插件示例 | 🔌 (v0.3.0+) |
 
 ---
 
 ## 4. 测试 `tests/`
 
-| 文件 | 覆盖范围 | 状态 |
-|------|---------|------|
-| `integration/test_consultation_flow.py` | 完整就诊流程 (含 12 个测试用例) | ✅ |
-| `integration/test_agent_communication.py` | Agent 间通信 | ✅ |
-| `unit/agents/` | Agent 单元测试 | 📋 |
-| `unit/knowledge/` | 知识库单元测试 | 📋 |
-| `unit/memory/` | 记忆系统单元测试 | 📋 |
+| 文件 | 覆盖范围 | 测试数 | 状态 |
+|------|---------|--------|------|
+| `integration/test_consultation_flow.py` | 完整就诊流程 | 12 | ✅ |
+| `integration/test_agent_communication.py` | Agent 通信协议 | 11 | ✅ |
+| `unit/agents/test_skill_system.py` | Skill 系统 | 19 | ✅ |
+| `unit/agents/test_doctor_agent.py` | Doctor Agent | 16 | ✅ |
+| `unit/agents/test_review_agent.py` | Review Agent | 6 | ✅ |
+| `unit/agents/test_coordinator.py` | Coordinator | 13 | ✅ |
+| `unit/agents/test_followup_agent.py` | Followup | 10 | ✅ |
+| `unit/guardrails/test_guardrails.py` | Guardrails | 22 | ✅ |
+| `unit/knowledge/test_source.py` | 知识源定义 | 9 | ✅ |
+| `unit/knowledge/test_chunker.py` | 分块策略 | 12 | ✅ |
+| `unit/knowledge/test_bm25.py` | BM25 | 9 | ✅ |
+| `unit/knowledge/test_retriever.py` | 融合检索 (标记 slow) | 8 | ✅ |
+| `unit/knowledge/test_knowledge_graph.py` | 知识图谱 (标记 slow) | 6 | ✅ |
+| `unit/knowledge/test_loader.py` | 文档加载 | 6 | ✅ |
+| `unit/memory/test_memory_manager.py` | 记忆管理器 (标记 slow) | 7 | ✅ |
+| `unit/memory/test_semantic_memory.py` | 语义记忆 (标记 slow) | 4 | ✅ |
+| `unit/memory/test_working_memory.py` | 工作记忆 (标记 slow) | 8 | ✅ |
 
 ---
 
@@ -274,7 +283,8 @@ triage → (emergency → 原地紧急处理)
 
 | 文件 | 用途 | 状态 |
 |------|------|------|
-| `docker/Dockerfile.backend` | 后端镜像 | 🏗 |
-| `docker/Dockerfile.frontend` | 前端镜像 | 🏗 |
+| `docker/Dockerfile.backend` | 后端镜像 (多阶段构建) | ✅ |
 | `docker/Dockerfile.worker` | Celery Worker 镜像 | 📋 |
 | `monitoring/prometheus.yml` | Prometheus 配置 (预留) | 📋 |
+| `docker-compose.yml` | 5 服务 (postgres/redis/qdrant/backend/frontend) | ✅ |
+| `Makefile` | 开发/部署/测试命令 | ✅ |

@@ -12,13 +12,13 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
-class BaseSkill(ABC):
+class BaseSkill(ABC): # （Abstract Base Class，抽象基类）
     """Medical specialty skill. Each skill covers one department's knowledge."""
 
     name: str = ""
     system_prompt: str = ""
 
-    @abstractmethod
+    @abstractmethod # （abstractmethod，抽象方法，所有子类必须实现  ）
     async def get_knowledge(self, context: dict[str, Any]) -> str:
         """Return specialty knowledge relevant to the given context (symptoms, history, etc.).
 

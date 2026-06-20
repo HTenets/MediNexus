@@ -120,6 +120,41 @@ MEDINEXUS_OLLAMA_BASE_URL=http://localhost:11434  # Ollama 默认
 
 ## 1e. 多源知识库约定 (W4)
 
+### 三路置信度
+```python
+CLINICAL_CASES_CONFIG.confidence_weight = 0.8
+MEDICAL_THEORY_CONFIG.confidence_weight  = 0.6
+LATEST_PAPERS_CONFIG.confidence_weight   = 0.3
+```
+
+### 分块策略
+- 临床病例: Semantic (384 tokens)
+- 医学理论: Hierarchical (768/192)
+- 最新论文: Recursive (512 tokens)
+
+---
+
+## 1f. 记忆系统约定 (W5)
+
+```python
+WorkingMemory   → Redis, TTL 3600s
+EpisodicMemory  → PostgreSQL, 历史就诊
+SemanticMemory  → PostgreSQL, 患者画像
+```
+
+注入: `context["patient_memory"] = await memory_manager.retrieve(patient_id)`
+
+---
+
+## 1g. Guardrail 约定 (W7)
+
+- 紧急检测: 演示级, 不接真实急救
+- PII 脱敏: 正则匹配
+- 身份验证: Demo 跳过 JWT
+- 审计日志: logging_middleware 记录请求耗时
+
+## 1e. 多源知识库约定 (W4)
+
 ### 三路置信度 (固定值)
 ```python
 # backend/knowledge/source.py

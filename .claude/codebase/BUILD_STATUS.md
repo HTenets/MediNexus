@@ -1,25 +1,25 @@
 # MediNexus 构建状态 (Build Status)
 
 > 追踪每个组件的实现状态。对 AI 而言: 知道什么已就绪、什么待实现。
-> 时间: 第 2 周结束 (2026-06-01), 即将进入第 3 周。
+> 时间: v0.1.0 (2026-06-19), 8 周开发全部完成。
 > 决策基线: 详见 [[design-decisions]]
 
 ---
 
-## 总体进度 (已调整: 基于设计决策)
+## 总体进度
 
 ```
 第1周 ████████████████████ 100%  项目基础设施
 第2周 ████████████████████ 100%  Agent 框架 + Triage Agent
-第3周 ████████████████████ 100%  Skill 系统 + Doctor Agent ✅ 已升级为: Ollama 优化 + 中英双语 + 降级路径
+第3周 ████████████████████ 100%  Skill 系统 + Doctor Agent ✅ Ollama 优化 + 中英双语 + 降级路径
 第4周 ████████████████████ 100%  RAG 知识库 + Review Agent ✅ 三路知识源 + HF-RAG 融合 + 轻量 KG + BM25 降级 + Review 独立验证
-第5周 ░░░░░░░░░░░░░░░░░░░░   0%  记忆系统 + 病历管理 + Followup
-第6周 ████████████████████ 100%  前端完整产品 [强度提升: 全页面+响应式+免责声明]
-第7周 ░░░░░░░░░░░░░░░░░░░░   0%  安全 + Guardrail + Coordinator [缩减: 紧急降为演示级]
-第8周 ░░░░░░░░░░░░░░░░░░░░   0%  部署 + 文档 + BYO Key 说明 + Ollama 部署指南
+第5周 ████████████████████ 100%  记忆系统 + SOAP + Session→Redis + Followup ✅
+第6周 ████████████████████ 100%  前端完整产品 ✅ 17 页面 + web-design 迁移 + Mock API
+第7周 ████████████████████ 100%  安全 + Guardrail + Coordinator ✅ Emergency/PII/Identity + 会诊协议
+第8周 ████████████████████ 100%  部署 + 文档 + v0.1.0 ✅ Docker 多阶段构建 + README + BYO Key 指南
 ```
 
-### 设计决策摘要 (影响各周)
+### 设计决策摘要
 | 决策 | 影响 |
 |------|------|
 | 🎯 **目标用户: 患者自助问诊** | 前端须在所有医疗回答后显示免责声明 |
@@ -46,68 +46,68 @@
 | SessionState | `orchestration/state.py` | 会话状态定义 |
 | GraphState | `orchestration/state.py` | LangGraph TypedDict |
 | ConsultationGraph | `orchestration/graph.py` | LangGraph 状态图构建器 |
-| SupervisorAgent | `orchestration/supervisor.py` | 路由逻辑 + 会话管理 |
+| SupervisorAgent | `orchestration/supervisor.py` | Redis 会话 + MemoryManager 注入 + 路由 |
 | StreamManager | `orchestration/stream.py` | WebSocket 流式事件 |
-| Consultation API | `app/api/consultation.py` | POST/GET + WebSocket |
+| Consultation API | `app/api/consultation.py` | POST/GET + WebSocket + SOAP complete |
+| Mock Data API | `app/api/mock_data.py` | 10 个端点: 三路知识源/SOAP/档案/Dashboard/状态 |
 | Main entry | `app/main.py` | FastAPI 应用 + WS 端点 |
-| Router | `app/api/router.py` | 路由汇总前缀 |
+| Router | `app/api/router.py` | 路由汇总前缀 + mock_data 注册 |
 | Config | `app/config.py` | pydantic-settings 配置 |
 | Database core | `app/core/database.py` | async SQLAlchemy |
 | Health API | `app/api/health.py` | 健康检查 |
 | LLM Client | `llm/client.py` | 抽象 + chat/chat_stream |
 | LLM providers | `llm/providers/` | OpenAI/Anthropic/Ollama |
-| 前端 chat 组件 | `src/components/chat/` | ChatContainer, ChatMessage, ChatInput |
-| WebSocket 客户端 | `src/lib/websocket.ts` | 含自动重连 |
-| API 客户端 | `src/lib/api.ts` | REST 封装 |
+| DoctorAgent | `agents/doctor/agent.py` | LLM + 规则双模式, Skill 集成, 降级标注 |
+| Doctor prompt | `agents/doctor/prompt.py` | Ollama 优化 JSON 输出诊断提示词 |
+| Skill 系统 | `agents/doctor/skills/` | BaseSkill + Registry + Loader + 4 内置 Skill |
+| ReviewAgent | `agents/review/agent.py` | 独立 RAG 验证 + 鉴别诊断检查 + 证据等级 |
+| CoordinatorAgent | `agents/coordinator/agent.py` | 多科室会诊 + 6 种复杂性触发器 |
+| FollowupAgent | `agents/followup/agent.py` | 随访计划 + 用药提醒 + 5 种计划模板 |
+| EmergencyDetector | `guardrails/emergency_detector.py` | 50+ 关键词 + 7 条语义正则 + 5 类紧急响应 |
+| PIISanitizer | `guardrails/pii_sanitizer.py` | 正则脱敏(手机/身份证/邮箱) + 掩码 + 检测 |
+| IdentityVerifier | `guardrails/identity_verifier.py` | 患者ID校验 + JWT 可注入 + 审计日志 |
+| Logging middleware | `app/middlewares/logging.py` | 请求耗时 + 状态码审计日志 |
+| Auth middleware | `app/middlewares/auth.py` | JWT 可选 (Demo 模式跳过) |
+| MemoryManager | `memory/manager.py` | 三层记忆统一检索接口 |
+| WorkingMemory | `memory/working.py` | Redis 会话 (current_agent + context, TTL 3600s) |
+| EpisodicMemory | `memory/stores/episodic.py` | PostgreSQL 历史就诊 (SOAP 字段) |
+| SemanticMemory | `memory/stores/semantic.py` | PostgreSQL 患者画像 (过敏/既往史/家族史) |
+| RAG 知识库 | `knowledge/` | 三路源 + 3 种分块 + Qdrant + BM25 降级 + RRF/Z-score 融合 |
+| 轻量知识图谱 | `knowledge/graph/` | 症状→疾病一跳映射, 100+ 种子实体 |
+| 前端 17 页面 | `frontend/src/app/` | 全部 next build 通过, web-design 风格 |
+| 前端 UI 组件 | `frontend/src/components/` | AppShell/Icons/Loading/Error/Empty/NavBar 等 |
+| WebSocket 客户端 | `frontend/src/lib/websocket.ts` | 含自动重连 + 6 事件类型 |
+| API 客户端 | `frontend/src/lib/api.ts` | REST + SOAP 封装 |
 | 集成测试 | `tests/integration/` | 12 个测试用例 |
-| Patient model | `app/models/patient.py` | ORM 模型 |
-| Consultation model | `app/models/consultation.py` | ORM 模型 |
+| 单元测试 (Agent) | `tests/unit/agents/` | ~62 测试 (Skill/Doctor/Review/Coordinator/Followup) |
+| 单元测试 (Guardrails) | `tests/unit/guardrails/` | 22 测试 (Emergency/PII/Identity) |
+| Patient model | `app/models/patient.py` | ORM 模型 (含 gender/dob/phone) |
+| Consultation model | `app/models/consultation.py` | ORM 模型 (含 SOAP 字段) |
+| Dockerfiles | `frontend/Dockerfile`, `infrastructure/docker/` | 多阶段构建 |
+| docs/byok-guide.md | — | Ollama/Claude/OpenAI 配置指南 + 降级链 |
+| 周学习文档 | `docs/weekN-*.md` | W1-W8 完整 |
 
 ### 🏗 部分完成 (骨架就绪, 待实现核心逻辑)
 
 | 组件 | 文件 | 已就绪 | 待完成 |
 |------|------|--------|--------|
-| DoctorAgent | `agents/doctor/agent.py` | 类定义 + BaseAgent 继承 | run() 核心诊断逻辑 |
-| Doctor prompt | `agents/doctor/prompt.py` | — | 诊断推理提示词 |
-| DiagnosisFlow | `agents/doctor/diagnosis_flow.py` | 状态枚举 | 状态机转换逻辑 |
-| Skill base | `agents/doctor/skills/base.py` | 类定义 | 完整抽象接口 |
-| Skill loader | `agents/doctor/skills/loader.py` | 骨架 | 动态加载实现 |
-| Skill registry | `agents/doctor/skills/registry.py` | 骨架 | 注册/查找逻辑 |
-| ReviewAgent | `agents/review/agent.py` | 类定义 + stub run() | 8 维审查矩阵 |
-| Review prompt | `agents/review/prompt.py` | — | 审查提示词 |
-| Review rules | `agents/review/rules/` | 文件结构 | 药物相互作用 + 禁忌症规则 |
-| CoordinatorAgent | `agents/coordinator/agent.py` | 类定义 + invite 方法 | 会诊状态机 + 专家汇总 |
-| Coordinator prompt | `agents/coordinator/prompt.py` | — | 会诊提示词 |
-| ConsultationProtocol | `agents/coordinator/consultation_protocol.py` | — | 会诊协议 |
-| FollowupAgent | `agents/followup/agent.py` | 类定义 + schedule | 完整随访逻辑 |
-| Followup prompt | `agents/followup/prompt.py` | — | 随访提示词 |
-| Followup scheduler | `agents/followup/scheduler.py` | — | 调度实现 |
-| Patients API | `app/api/patients.py` | 文件存在 | CRUD 实现 |
-| Records API | `app/api/medical_records.py` | 文件存在 | CRUD 实现 |
-| Redis core | `app/core/redis.py` | 文件存在 | 连接初始化 |
-| Logging middleware | `app/middlewares/logging.py` | 文件存在 | 请求/响应日志 |
-| Dockerfiles | `infrastructure/docker/` | 基础骨架 | 多阶段构建 |
-| Frontend pages | `src/app/pages/` | consultation + records + profile | 完整 UI 和数据绑定 |
+| RAG 真实数据 | `knowledge/loader.py` | 分块/向量化 Pipeline | 爬取真实病例/指南/论文入库 |
+| Neo4j 知识图谱 | `knowledge/graph/client.py` | 内存 dict 兜底 | Neo4j 生产接入 |
+| Review rules | `agents/review/rules/` | 文件结构 | 药物相互作用 + 禁忌症规则实现 |
+| Review prompt | `agents/review/prompt.py` | 8 维审查描述 | 完整提示词 |
+| Plugin SDK | `plugins/sdk/` | BasePlugin + hooks | 分类注册/生命周期/市场 (v0.3.0+) |
+| 程序性记忆 | `memory/` | 三层基础记忆 | Agent 总结经验能力 |
 
 ### 📋 待实现 (文件未创建或为预留)
 
-| 组件 | 说明 | 计划周 | 备注 |
-|------|------|--------|------|
-| 4 个科室 Skill | internal_medicine, dermatology, ent, mental_health | W3 | 提示词须为 Ollama 优化 |
-| RAGQuery | Qdrant 向量检索 | W4 | 需双语知识库支持 |
-| VectorStore | Qdrant 客户端操作 | W4 | — |
-| Knowledge loader | 文档加载/分块 | W4 | 中文+英文指南加载 |
-| ReviewAgent 完整 | 审查提示词 + 规则 | W4 | 参考级审查, 非临床级 |
-| MemoryManager | Mem0 集成 | W5 | — |
-| Episodic memory | 情景记忆 | W5 | — |
-| Semantic memory | 语义记忆 | W5 | — |
-| Auth/JWT | OAuth 2.0 + JWT | W7 | — |
-| Guardrails | Emergency/PII/Identity | W7 | **演示级**: 仅日志+前端提示, 不涉及真实急救 |
-| 免责声明系统 | 所有医疗回答后附加 | W6 | **患者自助问诊的必要风控**, 前端+后端都要 |
-| BYO Key 配置 | 用户自行配置 LLM Key | W8 | 文档 + env 引导 |
-| 降级提示机制 | 降级时输出模式提示 | W3-W4 | 每个 Agent 降级路径须附模式标注 |
-| Plugin SDK | Plugin 基类 + 钩子 | — (v0.3.0+) | 延迟 |
-| GraphRAG | 知识图谱检索 | — (v0.3.0+) | 延迟 |
+| 组件 | 说明 | 计划版本 | 备注 |
+|------|------|---------|------|
+| GraphRAG | 知识图谱检索 | v0.3.0+ | 接口已预留 (graph_rag.py) |
+| 外部 Skill 加载 | 社区贡献 Skill | v0.3.0+ | loader.py 接口预留 |
+| 前端状态管理 | Zustand 集成 | v0.2.0+ | store 预留文件 |
+| 英文 i18n | 国际化 | v0.2.0+ | — |
+| Human-in-the-loop | 专家审核 | v0.2.0+ | — |
+| 真实急救接入 | 120 集成 | v0.2.0+ | 演示级已够 |
 
 ---
 
@@ -116,15 +116,10 @@
 | 问题 | 位置 | 说明 | 优先级 |
 |------|------|------|--------|
 | TriageAgent evidence_level 硬编码 | `agents/triage/agent.py:55` | `evidence_level="C"` 写死 | low |
-| In-memory session store | `orchestration/supervisor.py:23` | `_sessions: dict` 非持久化 | medium (W5 修复) |
-| DoctorAgent stub | `agents/doctor/agent.py` | `run()` 返回空 skeleton | high (W3 修复) |
-| ReviewAgent stub | `agents/review/agent.py` | `run()` 返回空 skeleton | medium (W4 修复) |
-| CoordinatorAgent stub | `agents/coordinator/agent.py` | `run()` 基本骨架 | medium (W7 修复) |
-| FollowupAgent stub | `agents/followup/agent.py` | `run()` 基本骨架 | medium (W5 修复) |
 | Has_prescription 硬编码 | `orchestration/supervisor.py:44` | 路由逻辑的条件目前写死 | low |
-| **缺失: 免责声明系统** | — | 患者自助问诊须在每次响应后附加医疗免责声明 | **high (W6 前须完成)** |
-| **缺失: 降级模式标注** | — | Ollama 降级时须明确告知用户当前模式 | medium (W3-W4) |
-| **缺失: BYO Key 文档** | — | 用户配置 LLM Key 的流程未文档化 | low (W8) |
+| RAG 无真实数据 | `knowledge/loader.py` | 只有 3 条 seed case | medium |
+| DoctorAgent 降级标注 | `agents/doctor/agent.py` | facts[0] 降级标记已实现但需验证 | low |
+| 免责声明系统 | 前端 | 组件已实现 (DisclaimerBanner) | ✅ 已修复 |
 
 ---
 
@@ -133,22 +128,30 @@
 ```
 tests/
 ├── integration/
-│   ├── test_consultation_flow.py  — 12 测试用例 (完整就诊流程)
-│   └── test_agent_communication.py — Agent 通信测试
+│   ├── test_consultation_flow.py  — 12 测试 (完整就诊流程)
+│   └── test_agent_communication.py — 11 测试 (Agent 通信)
 ├── unit/
 │   ├── agents/
-│   │   ├── test_skill_system.py   — 19 测试用例 (BaseSkill/Registry/BuiltinSkills)  ✅ W3
-│   │   ├── test_doctor_agent.py   — 16 测试用例 (规则模式/LLM模式/Skill集成)        ✅ W3
-│   │   └── test_review_agent.py   — 6 测试用例 (独立RAG验证/风险标记/证据等级)      ✅ W4
-│   ├── knowledge/
-│   │   ├── test_source.py         — 9 测试用例 (三路定义/置信度权重/分块策略)         ✅ W4
-│   │   ├── test_chunker.py        — 12 测试用例 (语义/层次/递归/工厂)                ✅ W4
-│   │   ├── test_bm25.py           — 9 测试用例 (BM25索引/中文分词/多源降级)           ✅ W4
-│   │   ├── test_retriever.py      — 8 测试用例 (空结果/融合/加权/Z-score/BM25路线)   ✅ W4
-│   │   ├── test_knowledge_graph.py— 6 测试用例 (症状查询/JSON加载/疾病信息)          ✅ W4
-│   │   └── test_loader.py         — 6 测试用例 (种子数据/文档加载)                   ✅ W4
-│   └── memory/     — 待实现
+│   │   ├── test_skill_system.py   — 19 测试 (Skill 系统)        ✅ W3
+│   │   ├── test_doctor_agent.py   — 16 测试 (Doctor Agent)      ✅ W3
+│   │   ├── test_review_agent.py   — 6 测试 (Review Agent)       ✅ W4
+│   │   ├── test_coordinator.py    — 13 测试 (Coordinator)       ✅ W7
+│   │   └── test_followup_agent.py — 10 测试 (Followup)          ✅ W5
+│   ├── guardrails/
+│   │   └── test_guardrails.py     — 22 测试 (Emergency/PII/ID)  ✅ W7
+│   ├── knowledge/                  (慢测试: 需 Qdrant)
+│   │   ├── test_source.py         — 9 测试                       ✅ W4
+│   │   ├── test_chunker.py        — 12 测试                      ✅ W4
+│   │   ├── test_bm25.py           — 9 测试                       ✅ W4
+│   │   ├── test_retriever.py      — 8 测试 (标记 slow)           ✅ W4
+│   │   ├── test_knowledge_graph.py— 6 测试 (标记 slow)           ✅ W4
+│   │   └── test_loader.py         — 6 测试                       ✅ W4
+│   └── memory/                    (慢测试: 需 Redis/PG)
+│       ├── test_memory_manager.py — 7 测试 (标记 slow)           ✅ W5
+│       ├── test_semantic_memory.py— 4 测试 (标记 slow)           ✅ W5
+│       └── test_working_memory.py — 8 测试 (标记 slow)           ✅ W5
 ```
 
-**总测试数: 120** (27 原有 + 35 W3 + 58 W4)
-当前测试重点: TriageAgent + DoctorAgent + Skill 系统 + 三路 RAG + 知识图谱 + Review Agent
+**测试状态:**
+- `pytest -m "not slow"` — 99 tests, ~0.3s (Agent + Guardrails + 通信)
+- `pytest` (含 slow) — ~180 tests, 需 PostgreSQL/Redis/Qdrant 运行
