@@ -3,7 +3,7 @@
 > 此文件是项目代码结构的权威索引。AI 在修改代码前应查阅此文件理解模块职责与边界。
 > 状态标记: ✅ 已完成 | 🏗 进行中 | 📋 待实现 | 🔌 预留接口
 > 决策基线: 患者自助问诊(A) | 参考级准确度 | Ollama 默认 + BYO Key 降级 | 中文为主英文备用 | 紧急演示级
-> 版本: v0.1.0 (2026-06-19)
+> 版本: v0.1.0 (2026-06-22)
 
 ---
 
@@ -57,10 +57,12 @@
 | 文件 | 职责 | 关键导出 | 状态 |
 |------|------|---------|------|
 | `agent.py` | ReviewAgent (独立 RAG 验证 + 鉴别诊断检查 + 证据等级) | `class ReviewAgent(BaseAgent)` | ✅ |
-| `prompt.py` | 审查提示词 (8 维审查描述) | `REVIEW_PROMPT` | 🏗 |
-| `rules/drug_interaction.py` | 药物相互作用检查规则 | — | 📋 |
-| `rules/contraindication.py` | 禁忌症检查规则 | — | 📋 |
-| `checkers/__init__.py` | 可插拔检查器骨架 | — | 📋 |
+| `prompt.py` | 8 维审查完整提示词 (药物/禁忌/剂量/过敏/证据/重复/年龄/鉴别) | `REVIEW_PROMPT`, `REVIEW_SYSTEM_PROMPT` | ✅ |
+| `rules/drug_interaction.py` | 药物相互作用检查 (14 组药物对 + severity/mechanism/recommendation) | `check_drug_interaction`, `check_drug_in_context` | ✅ |
+| `rules/contraindication.py` | 禁忌症+过敏+年龄限制检查 (完整数据 + 3 个检查函数) | `check_contraindication`, `check_allergy`, `check_age_restriction`, `check_all_contraindications` | ✅ |
+| `checkers/__init__.py` | 可插拔检查器注册框架 + run_all_checkers 聚合 | `CHECKERS`, `register_checker()`, `run_all_checkers()` | ✅ |
+| `checkers/drug_interaction_checker.py` | 药物相互作用检查器 (注册为 drug_interaction) | — | ✅ |
+| `checkers/contraindication_checker.py` | 禁忌症+过敏+年龄限制检查器 (注册为 contraindication) | — | ✅ |
 
 ---
 
@@ -104,17 +106,17 @@
 | `api/router.py` | 路由汇总 (含 mock_data 注册) | ✅ |
 | `api/consultation.py` | 问诊 API + WebSocket + SOAP complete | ✅ |
 | `api/mock_data.py` | 10 个 mock 端点 (三路知识源/SOAP/档案/Dashboard/状态/患者) | ✅ |
-| `api/patients.py` | 患者 API | 🏗 |
-| `api/medical_records.py` | 病历 API | 🏗 |
+| `api/patients.py` | 患者 CRUD API (create/list/get/update/delete + demo 数据) | ✅ |
+| `api/medical_records.py` | 病历 API (get/list/create + demo 数据) | ✅ |
 | `api/health.py` | 健康检查 | ✅ |
 | `core/database.py` | PostgreSQL 连接 (SQLAlchemy async) | ✅ |
 | `core/redis.py` | Redis 连接 | ✅ |
-| `core/auth.py` | JWT 认证 | 🏗 |
-| `core/security.py` | PII 脱敏/加密 | 🏗 |
-| `core/dependencies.py` | FastAPI 依赖注入 | 📋 |
+| `core/auth.py` | JWT 认证 (create_token/refresh/decode/get_current_user/get_optional_user) | ✅ |
+| `core/security.py` | PII 检测/脱敏/掩码 (正则: 手机/座机/身份证/邮箱) | ✅ |
+| `core/dependencies.py` | FastAPI 依赖注入 (get_session_id/get_current_patient_id/pagination_params) | ✅ |
 | `middlewares/auth.py` | 认证中间件 (JWT 可选, Demo 模式跳过) | ✅ |
 | `middlewares/logging.py` | 请求日志中间件 | ✅ |
-| `middlewares/rate_limit.py` | 限流中间件 | 📋 |
+| `middlewares/rate_limit.py` | 限流中间件 (60 req/min per IP, 已接入 main.py) | ✅ |
 
 ---
 
@@ -124,9 +126,9 @@
 |------|------|---------|------|
 | `patient.py` | `patients` | id, name, gender, dob, phone, created_at | ✅ |
 | `consultation.py` | `consultations` | id, patient_id, status, subjective, objective, assessment, plan, diagnosis | ✅ |
-| `prescription.py` | `prescriptions` | — | 🏗 |
+| `prescription.py` | `prescriptions` | — | 🏗 (v0.2.0+ 业务逻辑) |
 | `medical_history.py` | `medical_histories` | id, patient_id, history_type, content(JSON) | ✅ |
-| `followup.py` | `followups` | id, patient_id, consultation_id, status, notes | 🏗 |
+| `followup.py` | `followups` | id, patient_id, consultation_id, status, notes | 🏗 (v0.2.0+ 业务逻辑) |
 | `audit_log.py` | `audit_logs` | id, action, details(JSON), created_at | ✅ |
 
 ---
@@ -137,7 +139,7 @@
 |------|---------|------|
 | `agent.py` | `HandoverManifest` (facts, pending_questions, risk_flags, evidence_level, context) | ✅ |
 | `consultation.py` | `ConsultationStartRequest/Response`, `ConsultationStatusResponse`, `SOAPCompletionRequest` | ✅ |
-| `patient.py` | 患者 Pydantic 模型 | 🏗 |
+| `patient.py` | 患者 Pydantic 模型 (PatientCreate/Update/Response/ListResponse) | ✅ |
 | `memory.py` | `MemoryEntry` (session_id, patient_id, content, memory_type) | ✅ |
 
 ---
@@ -202,7 +204,7 @@
 
 | 文件 | 职责 | 状态 |
 |------|------|------|
-| `tasks.py` | 后台异步任务定义 | 📋 |
+| `tasks.py` | Celery 异步任务 (send_followup_reminder/process_async_analysis/cleanup_expired_sessions + lazy Celery app init) | ✅ |
 
 ---
 

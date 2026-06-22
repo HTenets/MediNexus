@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.database import engine
+from app.middlewares.rate_limit import rate_limit_middleware
 from orchestration.supervisor import SupervisorAgent
 from orchestration.stream import StreamManager
 
@@ -34,6 +35,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting middleware
+app.middleware("http")(rate_limit_middleware)
 
 # REST API routes under /api/v1
 app.include_router(api_router, prefix="/api/v1")

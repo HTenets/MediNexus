@@ -153,6 +153,83 @@ SemanticMemory  → PostgreSQL, 患者画像
 - 身份验证: Demo 跳过 JWT
 - 审计日志: logging_middleware 记录请求耗时
 
+## 1h. Review Checkers 约定 (2026-06-22)
+
+### 检查器注册模式
+```python
+from agents.review.checkers import register_checker, run_all_checkers
+
+@register_checker("my_checker")
+def check_something(context, diagnosis, prescription) -> list[dict]:
+    findings = []
+    # ... check logic ...
+    return findings
+
+# 聚合运行:
+all_findings = run_all_checkers(context, diagnosis, prescription)
+```
+
+### 检查器返回格式
+```python
+{
+    "checker": "drug_interaction",    # 注册名
+    "severity": "contraindicated",    # contraindicated|major|moderate|minor|error
+    "drug": "aspirin",                # 相关药物
+    "finding": "描述",                # 发现描述
+    "recommendation": "建议",         # 处理建议
+}
+```
+
+### 内置检查器
+- `drug_interaction` — 药物相互作用检查 (rules/drug_interaction.py)
+- `contraindication` — 禁忌症+过敏+年龄限制检查 (rules/contraindication.py)
+
+---
+
+## 1i. Patient API 约定 (2026-06-22)
+
+### CRUD 模式
+```python
+# GET /api/v1/patients          → 列表 (支持 search/page/page_size)
+# POST /api/v1/patients         → 创建 (201)
+# GET /api/v1/patients/{id}     → 详情 (404 未找到)
+# PUT /api/v1/patients/{id}     → 更新 (404 未找到)
+# DELETE /api/v1/patients/{id}  → 删除 (404 未找到)
+```
+
+### 患者 Schema
+```python
+PatientCreate   # name(必填), gender, dob, phone, id_number, address, allergies, medical_history
+PatientUpdate   # 全部可选
+PatientResponse # id, name, gender, dob, phone, age(计算), allergies, medical_history, created_at, last_visit, status
+```
+
+---
+
+## 1j. JWT Auth 约定 (2026-06-22)
+
+### Token 类型
+| 类型 | 过期 | 用途 |
+|------|------|------|
+| access | 24h | 常规 API 认证 |
+| refresh | 7d | 刷新 access token |
+
+### 依赖注入
+```python
+get_current_user   # 强制认证 → 401 无令牌
+get_optional_user  # 可选认证 → None (Demo 模式)
+```
+
+### 安全层 (security.py)
+```python
+sanitize(text)    # PII → [手机号] 标签替换
+mask_pii(text)    # PII → 138****5678 部分掩码
+has_pii(text)     # bool 检测
+detect_pii(text)  # list[dict] 详细发现
+```
+
+---
+
 ## 1e. 多源知识库约定 (W4)
 
 ### 三路置信度 (固定值)

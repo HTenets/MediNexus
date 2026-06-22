@@ -8,7 +8,21 @@
       "Bash(mkdir *)",
       "PowerShell(New-Item *)",
       "PowerShell(Get-ChildItem *)",
-      "PowerShell(Set-Content *)"
+      "PowerShell(Set-Content *)",
+      "Bash(PYTHONPATH=backend timeout 15 python -m pytest tests/unit/agents/test_review_rules.py -v --no-header)",
+      "Bash(python -)",
+      "PowerShell($env:PYTHONPATH = \"E:\\\\Program\\\\MediNexus\\\\backend\"; python -c \"from agents.review.rules.drug_interaction import check_drug_interaction; r = check_drug_interaction\\('阿司匹林', '华法林'\\); print\\(r\\)\")",
+      "Bash(PYTHONPATH=backend python3 -c ' *)",
+      "Bash(python3)",
+      "PowerShell($env:PYTHONPATH=\"E:\\\\Program\\\\MediNexus\\\\backend\"; python -c \"f=open\\('backend/agents/review/rules/drug_interaction.py','r',encoding='utf-8'\\);c=f.read\\(\\);f.close\\(\\);print\\('len',len\\(c\\)\\);print\\('has aspirin','aspirin' in c\\);print\\('has 阿','阿' in c\\)\")",
+      "PowerShell($env:PYTHONPATH=\"E:\\\\Program\\\\MediNexus\\\\backend\"; python -c \"from agents.review.rules.contraindication import check_contraindication; print\\(check_contraindication\\('metformin','renal_insufficiency'\\)\\); print\\(check_allergy\\('amoxicillin','penicillin_allergy'\\)\\)\")",
+      "Bash(python -m pytest tests/ -x --tb=short -q)",
+      "Bash(Select-Object -Last 50)",
+      "Bash(python -m pytest tests/ -x --tb=short -q --ignore=tests/unit/agents/test_coordinator.py)",
+      "Bash(python -m pytest tests/ -x --tb=short -q --ignore=tests/unit/agents/test_coordinator.py -m \"not slow\")",
+      "Bash(python -c ' *)",
+      "PowerShell(cd \"E:\\\\Program\\\\MediNexus\"; $env:PYTHONPATH=\"E:\\\\Program\\\\MediNexus\\\\backend\"; python -c \"from app.core.auth import create_access_token, decode_token; t=create_access_token\\('test_user'\\); d=decode_token\\(t\\); print\\('JWT OK:', d['sub']\\)\")",
+      "PowerShell(cd \"E:\\\\Program\\\\MediNexus\"; $env:PYTHONPATH=\"E:\\\\Program\\\\MediNexus\\\\backend\"; python -c \"from app.core.security import sanitize, mask_pii, has_pii; print\\('sanitize:', sanitize\\('phone 13812345678'\\)\\); print\\('mask:', mask_pii\\('phone 13812345678'\\)\\); print\\('has_pii:', has_pii\\('phone 13812345678'\\)\\)\")"
     ]
   }
 }

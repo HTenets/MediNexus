@@ -1,7 +1,8 @@
 # MediNexus 构建状态 (Build Status)
 
 > 追踪每个组件的实现状态。对 AI 而言: 知道什么已就绪、什么待实现。
-> 时间: v0.1.0 (2026-06-19), 8 周开发全部完成。
+> 时间: v0.1.0 (2026-06-22), 全部 8 周开发 + Demo 级模块完善完成。
+> 测试状态: 快速测试 129 ✅ / 集成测试 27 ✅ / 总计 156 测试通过。
 > 决策基线: 详见 [[design-decisions]]
 
 ---
@@ -61,11 +62,22 @@
 | Doctor prompt | `agents/doctor/prompt.py` | Ollama 优化 JSON 输出诊断提示词 |
 | Skill 系统 | `agents/doctor/skills/` | BaseSkill + Registry + Loader + 4 内置 Skill |
 | ReviewAgent | `agents/review/agent.py` | 独立 RAG 验证 + 鉴别诊断检查 + 证据等级 |
-| CoordinatorAgent | `agents/coordinator/agent.py` | 多科室会诊 + 6 种复杂性触发器 |
+| Review prompt | `agents/review/prompt.py` | 8 维完整审查提示词 + JSON 输出格式 |
+| Review rules | `agents/review/rules/drug_interaction.py` | 14 组药物相互作用 (severity/mechanism/recommendation) |
+| Review rules | `agents/review/rules/contraindication.py` | 禁忌症+过敏+年龄限制 (完整数据 + 3 检查函数) |
+| Review checkers | `agents/review/checkers/` | 可插拔框架 + drug_interaction + contraindication 检查器 |
+| CoordinatorAgent | `agents/coordinator/agent.py` | 多科室会诊 + COMPLEXITY_TRIGGERS (4 种触发器) |
 | FollowupAgent | `agents/followup/agent.py` | 随访计划 + 用药提醒 + 5 种计划模板 |
 | EmergencyDetector | `guardrails/emergency_detector.py` | 50+ 关键词 + 7 条语义正则 + 5 类紧急响应 |
 | PIISanitizer | `guardrails/pii_sanitizer.py` | 正则脱敏(手机/身份证/邮箱) + 掩码 + 检测 |
 | IdentityVerifier | `guardrails/identity_verifier.py` | 患者ID校验 + JWT 可注入 + 审计日志 |
+| Patients API | `app/api/patients.py` | 完整 CRUD + 搜索分页 + 2 条 demo 数据 |
+| Medical Records API | `app/api/medical_records.py` | get/list/create + 3 条 demo 记录 |
+| JWT Auth | `app/core/auth.py` | create/refresh/decode/get_current_user/optional |
+| PII Security | `app/core/security.py` | 正则检测/脱敏/掩码 (4 种模式) |
+| Dependencies | `app/core/dependencies.py` | session_id/patient_id/pagination |
+| Rate Limit | `app/middlewares/rate_limit.py` | 60 req/min per IP (已接入 main.py) |
+| Celery Workers | `workers/tasks.py` | 3 任务 (reminder/analysis/cleanup) + lazy Celery init |
 | Logging middleware | `app/middlewares/logging.py` | 请求耗时 + 状态码审计日志 |
 | Auth middleware | `app/middlewares/auth.py` | JWT 可选 (Demo 模式跳过) |
 | MemoryManager | `memory/manager.py` | 三层记忆统一检索接口 |
@@ -79,8 +91,8 @@
 | WebSocket 客户端 | `frontend/src/lib/websocket.ts` | 含自动重连 + 6 事件类型 |
 | API 客户端 | `frontend/src/lib/api.ts` | REST + SOAP 封装 |
 | 集成测试 | `tests/integration/` | 12 个测试用例 |
-| 单元测试 (Agent) | `tests/unit/agents/` | ~62 测试 (Skill/Doctor/Review/Coordinator/Followup) |
-| 单元测试 (Guardrails) | `tests/unit/guardrails/` | 22 测试 (Emergency/PII/Identity) |
+| 单元测试 (Agent) | `tests/unit/agents/` | ~78 测试 (Skill/Doctor/Review/ReviewRules/Coordinator/Followup) |
+| 单元测试 (Guardrails) | `tests/unit/guardrails/` | 24 测试 (Emergency/PII/Identity) |
 | Patient model | `app/models/patient.py` | ORM 模型 (含 gender/dob/phone) |
 | Consultation model | `app/models/consultation.py` | ORM 模型 (含 SOAP 字段) |
 | Dockerfiles | `frontend/Dockerfile`, `infrastructure/docker/` | 多阶段构建 |
@@ -93,8 +105,9 @@
 |------|------|--------|--------|
 | RAG 真实数据 | `knowledge/loader.py` | 分块/向量化 Pipeline | 爬取真实病例/指南/论文入库 |
 | Neo4j 知识图谱 | `knowledge/graph/client.py` | 内存 dict 兜底 | Neo4j 生产接入 |
-| Review rules | `agents/review/rules/` | 文件结构 | 药物相互作用 + 禁忌症规则实现 |
-| Review prompt | `agents/review/prompt.py` | 8 维审查描述 | 完整提示词 |
+| Prescription model | `app/models/prescription.py` | ORM 模型定义 | 业务逻辑 (create/verify/dispense) |
+| Followup model | `app/models/followup.py` | ORM 模型定义 | 业务逻辑 (schedule/notify) |
+| Patient schema | `app/schemas/patient.py` | 完整 Pydantic 模型 | 已在 API 层使用 |
 | Plugin SDK | `plugins/sdk/` | BasePlugin + hooks | 分类注册/生命周期/市场 (v0.3.0+) |
 | 程序性记忆 | `memory/` | 三层基础记忆 | Agent 总结经验能力 |
 
@@ -119,7 +132,8 @@
 | Has_prescription 硬编码 | `orchestration/supervisor.py:44` | 路由逻辑的条件目前写死 | low |
 | RAG 无真实数据 | `knowledge/loader.py` | 只有 3 条 seed case | medium |
 | DoctorAgent 降级标注 | `agents/doctor/agent.py` | facts[0] 降级标记已实现但需验证 | low |
-| 免责声明系统 | 前端 | 组件已实现 (DisclaimerBanner) | ✅ 已修复 |
+| Patients API 内存存储 | `app/api/patients.py` | 无持久化，重启丢失 | low |
+| Medical Records API 内存存储 | `app/api/medical_records.py` | 无持久化，重启丢失 | low |
 
 ---
 
@@ -129,29 +143,33 @@
 tests/
 ├── integration/
 │   ├── test_consultation_flow.py  — 12 测试 (完整就诊流程)
-│   └── test_agent_communication.py — 11 测试 (Agent 通信)
+│   ├── test_agent_communication.py — 11 测试 (Agent 通信)
+│   └── 小计: 27 passed ✅
 ├── unit/
 │   ├── agents/
-│   │   ├── test_skill_system.py   — 19 测试 (Skill 系统)        ✅ W3
-│   │   ├── test_doctor_agent.py   — 16 测试 (Doctor Agent)      ✅ W3
-│   │   ├── test_review_agent.py   — 6 测试 (Review Agent)       ✅ W4
-│   │   ├── test_coordinator.py    — 13 测试 (Coordinator)       ✅ W7
-│   │   └── test_followup_agent.py — 10 测试 (Followup)          ✅ W5
+│   │   ├── test_skill_system.py      — 19 测试 (Skill 系统)        ✅ W3
+│   │   ├── test_doctor_agent.py      — 16 测试 (Doctor Agent)      ✅ W3
+│   │   ├── test_review_agent.py      — 6 测试 (Review Agent)       ✅ W4
+│   │   ├── test_review_rules.py      — 14 测试 (药物交互+禁忌症)   ✅ 2026-06-22
+│   │   ├── test_coordinator.py       — 13 测试 (Coordinator)       ✅ W7
+│   │   └── test_followup_agent.py    — 10 测试 (Followup)          ✅ W5
+│   │   └── 小计: 78 passed ✅
 │   ├── guardrails/
-│   │   └── test_guardrails.py     — 22 测试 (Emergency/PII/ID)  ✅ W7
+│   │   └── test_guardrails.py        — 24 测试 (Emergency/PII/ID)  ✅ W7
 │   ├── knowledge/                  (慢测试: 需 Qdrant)
-│   │   ├── test_source.py         — 9 测试                       ✅ W4
-│   │   ├── test_chunker.py        — 12 测试                      ✅ W4
-│   │   ├── test_bm25.py           — 9 测试                       ✅ W4
-│   │   ├── test_retriever.py      — 8 测试 (标记 slow)           ✅ W4
-│   │   ├── test_knowledge_graph.py— 6 测试 (标记 slow)           ✅ W4
-│   │   └── test_loader.py         — 6 测试                       ✅ W4
+│   │   ├── test_source.py           — 9 测试                       ✅ W4
+│   │   ├── test_chunker.py          — 12 测试                      ✅ W4
+│   │   ├── test_bm25.py             — 9 测试                       ✅ W4
+│   │   ├── test_retriever.py        — 8 测试 (标记 slow)           ✅ W4
+│   │   ├── test_knowledge_graph.py  — 6 测试 (标记 slow)           ✅ W4
+│   │   └── test_loader.py           — 6 测试                       ✅ W4
 │   └── memory/                    (慢测试: 需 Redis/PG)
-│       ├── test_memory_manager.py — 7 测试 (标记 slow)           ✅ W5
-│       ├── test_semantic_memory.py— 4 测试 (标记 slow)           ✅ W5
-│       └── test_working_memory.py — 8 测试 (标记 slow)           ✅ W5
+│       ├── test_memory_manager.py   — 7 测试 (标记 slow)           ✅ W5
+│       ├── test_semantic_memory.py  — 4 测试 (标记 slow)           ✅ W5
+│       └── test_working_memory.py   — 8 测试 (标记 slow)           ✅ W5
 ```
 
 **测试状态:**
-- `pytest -m "not slow"` — 99 tests, ~0.3s (Agent + Guardrails + 通信)
+- `pytest -m "not slow"` — **129 tests, all passed** ✅ (Agent + Guardrails + Rules + 通信)
 - `pytest` (含 slow) — ~180 tests, 需 PostgreSQL/Redis/Qdrant 运行
+- 集成测试: **27 passed** ✅

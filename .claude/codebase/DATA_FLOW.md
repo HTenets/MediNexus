@@ -3,6 +3,7 @@
 > 描述请求从进入系统到输出结果的完整路径。
 > 涵盖 REST / WebSocket / Agent Pipeline 三种数据流。
 > 决策基线: 患者自助问诊 | Ollama 默认 + BYO Key 降级 | 紧急演示级
+> 版本: v0.1.0 (2026-06-22) — 新增 Patient CRUD / Records / Auth / Rate Limit 数据流
 
 ---
 
@@ -410,3 +411,93 @@ Consultation (持久化)
   ├── diagnosis: Text
   └── created_at
 ```
+
+---
+
+## 9. Patient CRUD 数据流 (2026-06-22 新增)
+
+```mermaid
+sequenceDiagram
+    participant Client as 前端/客户端
+    participant API as PatientAPI (patients.py)
+    participant Store as InMemoryStore
+    
+    Client->>API: GET /api/v1/patients?search=张三&page=1
+    API->>Store: _patients dict search
+    Store-->>API: filtered items
+    API-->>Client: {total, items[]}
+
+    Client->>API: POST /api/v1/patients {name, gender, ...}
+    API->>Store: _patients[new_id] = record
+    Store-->>API: saved
+    API-->>Client: 201 {id, name, ...}
+
+    Client->>API: GET /api/v1/patients/{id}
+    API->>Store: _patients.get(id)
+    Store-->>API: record or 404
+    API-->>Client: {id, name, ...}
+
+    Client->>API: PUT /api/v1/patients/{id} {name, ...}
+    API->>Store: _patients[id].update(data)
+    Store-->>API: updated
+    API-->>Client: {id, name, ...}
+
+    Client->>API: DELETE /api/v1/patients/{id}
+    API->>Store: del _patients[id]
+    API-->>Client: {"message": "已删除"}
+```
+
+## 10. Medical Records 数据流 (2026-06-22 新增)
+
+```mermaid
+sequenceDiagram
+    participant Client as 前端/客户端
+    participant API as RecordsAPI (medical_records.py)
+    participant Store as InMemoryStore
+    
+    Client->>API: GET /api/v1/records/{record_id}
+    API->>Store: search all patients' records
+    Store-->>API: record or 404
+    API-->>Client: {id, date, diagnosis, ...}
+
+    Client->>API: GET /api/v1/records/patient/{patient_id}
+    API->>Store: _records.get(patient_id)
+    Store-->>API: list sorted by date desc
+    API-->>Client: {session_id, records[], total}
+```
+
+## 11. JWT Auth 数据流 (2026-06-22 新增)
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Auth as AuthModule (auth.py)
+    participant JWT as JWT Token
+    
+    App->>Auth: create_access_token("user_001")
+    Auth->>JWT: jwt.encode({sub, exp, iat, type})
+    JWT-->>Auth: eyJhbGci...
+    Auth-->>App: token string
+
+    App->>Auth: get_current_user(token)
+    Auth->>JWT: jwt.decode(token, secret)
+    JWT-->>Auth: payload {sub: "user_001"}
+    Auth-->>App: "user_001"
+
+    App->>Auth: get_optional_user(token | None)
+    Auth->>JWT: try decode (safe)
+    JWT-->>Auth: payload or None
+    Auth-->>App: "user_001" | None
+```
+
+## 12. Rate Limit 数据流 (2026-06-22 新增)
+
+```mermaid
+flowchart LR
+    Request["HTTP Request"] --> RLM["rate_limit_middleware<br/>提取 client IP"]
+    RLM --> Check{"过去 60s 内<br/>请求数 > 60?"}
+    Check -->|"是"| Reject["429 Rate Limit Exceeded"]
+    Check -->|"否"| Record["记录当前时间戳<br/>清理过期记录"]
+    Record --> Forward["call_next(request)<br/>→ 正常处理"]
+```
+

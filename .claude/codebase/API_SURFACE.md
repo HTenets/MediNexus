@@ -97,6 +97,74 @@
 
 ---
 
+## Patient API
+
+### GET `/api/v1/patients`
+患者列表，支持搜索和分页。
+
+**Query Parameters:** `search?`, `page=1`, `page_size=20`
+
+**Response (200):**
+```json
+{
+  "total": 2,
+  "items": [
+    {"id": "patient_demo_001", "name": "张三", "gender": "男", "dob": "1990-05-15", "age": 36, "allergies": ["青霉素"], "medical_history": ["高血压"], "status": "active"}
+  ]
+}
+```
+
+### POST `/api/v1/patients`
+创建新患者。
+
+**Request:**
+```json
+{"name": "王五", "gender": "男", "dob": "1995-01-01", "phone": "13812345678", "allergies": [], "medical_history": []}
+```
+
+**Response (201):** 同上格式
+
+### GET `/api/v1/patients/{patient_id}`
+获取单个患者详情。
+
+### PUT `/api/v1/patients/{patient_id}`
+更新患者信息。
+
+### DELETE `/api/v1/patients/{patient_id}`
+删除患者。 → `{"message": "患者 xxx 已删除"}`
+
+---
+
+## Medical Records API
+
+### GET `/api/v1/records/{record_id}`
+获取单个病历记录。
+
+### GET `/api/v1/records/patient/{patient_id}`
+获取患者的所有病历。
+
+**Response (200):**
+```json
+{
+  "session_id": "patient_demo_001",
+  "records": [
+    {"id": "record_001", "patient_id": "patient_demo_001", "date": "2026-06-20T14:30:00", "subjective": "...", "diagnosis": "感冒", ...}
+  ],
+  "total": 1
+}
+```
+
+### POST `/api/v1/records/patient/{patient_id}`
+为患者创建新病历记录。**Request:** 任意 JSON 字段
+
+---
+
+## Auth API
+
+JWT 令牌在 `app/core/auth.py` 中实现，可通过 `create_access_token()` 和 `create_refresh_token()` 生成。当前 API 层通过中间件支持可选认证（Demo 模式跳过）。
+
+---
+
 ## WebSocket
 
 ### WS `/ws/{session_id}`
