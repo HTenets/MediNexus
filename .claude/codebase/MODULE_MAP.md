@@ -286,7 +286,11 @@
 | 文件 | 用途 | 状态 |
 |------|------|------|
 | `docker/Dockerfile.backend` | 后端镜像 (多阶段构建) | ✅ |
+| `docker/Dockerfile.render` | Render 专用 Dockerfile | ✅ |
 | `docker/Dockerfile.worker` | Celery Worker 镜像 | 📋 |
+| `monitoring/prometheus.yml` | Prometheus 配置 (预留) | 📋 |
+| `docker-compose.yml` | 5 服务 (postgres/redis/qdrant/backend/frontend) | ✅ |
+| `Makefile` | 开发/部署/测试命令 | ✅ |
 | `monitoring/prometheus.yml` | Prometheus 配置 (预留) | 📋 |
 | `docker-compose.yml` | 5 服务 (postgres/redis/qdrant/backend/frontend) | ✅ |
 | `Makefile` | 开发/部署/测试命令 | ✅ |

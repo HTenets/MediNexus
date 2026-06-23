@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.database import engine
+from app.config import settings
 from app.middlewares.rate_limit import rate_limit_middleware
 from orchestration.supervisor import SupervisorAgent
 from orchestration.stream import StreamManager
@@ -19,25 +20,40 @@ logger = logging.getLogger(__name__)
 # Global supervisor instance
 supervisor = SupervisorAgent()
 
+# Demo mode check
+IS_DEMO = settings.demo_mode or not settings.database_url
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if IS_DEMO:
+        logger.info("🔧 DEMO MODE: Running without database. Data will NOT persist.")
+    else:
+        logger.info("🚀 PRODUCTION MODE: Database connected.")
     yield
-    await engine.dispose()
+    if not IS_DEMO:
+        await engine.dispose()
 
 
 app = FastAPI(title="MediNexus", version="0.1.0", lifespan=lifespan)
 
+# Production CORS: only allow Vercel frontend
+PROD_ORIGINS = [
+    "https://medinexus.vercel.app",
+    "https://medinexus-git-main-*.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"] if IS_DEMO else PROD_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Rate limiting middleware
-app.middleware("http")(rate_limit_middleware)
+# Rate limiting middleware (skip in demo mode)
+if not IS_DEMO:
+    app.middleware("http")(rate_limit_middleware)
 
 # REST API routes under /api/v1
 app.include_router(api_router, prefix="/api/v1")

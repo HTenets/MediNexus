@@ -2,11 +2,14 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql+asyncpg://medinexus:medinexus_dev@localhost:5432/medinexus"
-    redis_url: str = "redis://localhost:6379/0"
-    qdrant_url: str = "http://localhost:6333"
+    database_url: str = ""
+    redis_url: str = ""
+    qdrant_url: str = ""
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
+    llm_provider: str = "ollama"
+    ollama_base_url: str = "http://localhost:11434"
+    demo_mode: bool = True
 
     model_config = {"env_file": ".env", "env_prefix": "MEDINEXUS_"}
 

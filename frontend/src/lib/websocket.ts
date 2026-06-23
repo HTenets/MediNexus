@@ -22,11 +22,21 @@ type EventCallback = (event: WsEvent) => void;
  */
 function getWsBase(): string {
   if (typeof window === "undefined") return "ws://localhost:8000";
-  // If running on a non-localhost host in dev, assume reverse proxy
-  if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}`;
+
+  // Production: connect directly to Render backend
+  if (
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+  ) {
+    // Use NEXT_PUBLIC_WS_URL env var, or default to Render
+    const envUrl =
+      typeof process !== "undefined" &&
+      (process.env as Record<string, string>)["NEXT_PUBLIC_WS_URL"];
+    if (envUrl) return envUrl;
+    return "wss://medinexus-api.onrender.com";
   }
+
+  // Development: connect to local backend
   return "ws://localhost:8000";
 }
 

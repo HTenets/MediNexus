@@ -22,7 +22,9 @@
       "Bash(python -m pytest tests/ -x --tb=short -q --ignore=tests/unit/agents/test_coordinator.py -m \"not slow\")",
       "Bash(python -c ' *)",
       "PowerShell(cd \"E:\\\\Program\\\\MediNexus\"; $env:PYTHONPATH=\"E:\\\\Program\\\\MediNexus\\\\backend\"; python -c \"from app.core.auth import create_access_token, decode_token; t=create_access_token\\('test_user'\\); d=decode_token\\(t\\); print\\('JWT OK:', d['sub']\\)\")",
-      "PowerShell(cd \"E:\\\\Program\\\\MediNexus\"; $env:PYTHONPATH=\"E:\\\\Program\\\\MediNexus\\\\backend\"; python -c \"from app.core.security import sanitize, mask_pii, has_pii; print\\('sanitize:', sanitize\\('phone 13812345678'\\)\\); print\\('mask:', mask_pii\\('phone 13812345678'\\)\\); print\\('has_pii:', has_pii\\('phone 13812345678'\\)\\)\")"
+      "PowerShell(cd \"E:\\\\Program\\\\MediNexus\"; $env:PYTHONPATH=\"E:\\\\Program\\\\MediNexus\\\\backend\"; python -c \"from app.core.security import sanitize, mask_pii, has_pii; print\\('sanitize:', sanitize\\('phone 13812345678'\\)\\); print\\('mask:', mask_pii\\('phone 13812345678'\\)\\); print\\('has_pii:', has_pii\\('phone 13812345678'\\)\\)\")",
+      "Bash(pip show *)",
+      "PowerShell(cd \"E:\\\\Program\\\\MediNexus\"; $env:PYTHONPATH=\"E:\\\\Program\\\\MediNexus\\\\backend\"; python -c \"from app.config import settings; print\\(f'demo_mode={settings.demo_mode}'\\); print\\(f'database_url={\\\\\"set\\\\\" if settings.database_url else \\\\\"empty\\\\\"}'\\); print\\(f'redis_url={\\\\\"set\\\\\" if settings.redis_url else \\\\\"empty\\\\\"}'\\); print\\(f'jwt_secret={settings.jwt_secret}'\\)\")"
     ]
   }
 }
