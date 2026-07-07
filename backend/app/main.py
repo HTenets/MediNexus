@@ -37,15 +37,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="MediNexus", version="0.1.0", lifespan=lifespan)
 
-# Production CORS: only allow Vercel frontend
-PROD_ORIGINS = [
-    "https://medinexus.vercel.app",
-    "https://medinexus-git-main-*.vercel.app",
-]
+origins = settings.allowed_origins.split(",") if settings.allowed_origins else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if IS_DEMO else PROD_ORIGINS,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

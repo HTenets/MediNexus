@@ -1,175 +1,192 @@
-# MediNexus 部署指南 — Vercel（前端）+ Render（后端）
+# MediNexus 部署指南
 
-> 零成本部署方案，所有服务均使用免费套餐。
+> 多个免费部署方案可选，全部无需绑定信用卡。
 > 仓库地址: `https://github.com/HTenets/MediNexus`
 
 ## 架构概览
 
 ```
-用户 → Vercel (CDN) → Render (API + WebSocket) → Render PostgreSQL + Redis
-          ↑                          ↑
-     next.config.js 代理      render.yaml 编排
-     /api/* → Render         Dockerfile.render
-     wss:// → Render
+用户 → Vercel (CDN) → 后端 API (可选多个平台) → 数据库 (可选多个平台)
+          ↑
+     next.config.js 代理 /api/* → 后端
+     WebSocket 直连 wss://后端
 ```
 
-## 前置条件
+## 部署方案选择
 
-1. [GitHub](https://github.com) 账号 — 代码已推送至 `HTenets/MediNexus`
+| 方案 | 前端 | 后端 | 数据库 | 绑卡 | 适合 |
+|------|------|------|--------|------|------|
+| 🥇 **方案A** | Vercel | **Zeabur** | Zeabur PG + Redis | ❌ 不需要 | **推荐，国产团队，最省心** |
+| 🥈 方案B | Vercel | **Koyeb** | Koyeb + 外部 | ❌ 不需要 | 国际方案，流程成熟 |
+| 🥉 方案C | Vercel | **Render** | Render PG + Redis | ✅ 需要 | 原方案，保留参考 |
+| 🆓 方案D | Vercel | **Zeabur 纯Demo** | 无（内存模式） | ❌ 不需要 | 快速体验，重启丢失 |
+| ☁️ 方案E | **自部署** | **阿里云ECS** | 自建 PG + Redis + Qdrant | ✅ 需要 | 完全掌控，性能最佳 |
+
+---
+
+## 🥇 方案A（推荐）：Vercel + Zeabur
+
+> [Zeabur](https://zeabur.com) 是中国团队开发的部署平台，支持微信/支付宝，免费套餐无需绑卡。
+
+### 前置条件
+
+1. [GitHub](https://github.com) 账号
 2. [Vercel](https://vercel.com) 账号 — 用 GitHub 登录
-3. [Render](https://render.com) 账号 — 用 GitHub 登录
+3. [Zeabur](https://zeabur.com) 账号 — 用 GitHub 登录，**无需绑卡**
 
 ---
 
-## 快速部署清单（约 10 分钟）
+### A1. Zeabur 创建后端服务
 
-| # | 操作 | 平台 | 耗时 |
-|---|------|------|------|
-| 1 | 创建 PostgreSQL 数据库 | Render | 2-3 min |
-| 2 | 创建 Redis 实例 | Render | 1-2 min |
-| 3 | 创建 Web Service（后端 API） | Render | 3-5 min |
-| 4 | 导入并部署前端 | Vercel | 1-2 min |
-| 5 | 验证完整链路 | — | 1 min |
-
----
-
-## 第1步：Render — 创建 PostgreSQL 数据库
-
-> 部署地址: https://dashboard.render.com
-
-1. 点击 **New +** → **PostgreSQL**
-2. 填写以下配置：
+1. 登录 [Zeabur Dashboard](https://dashboard.zeabur.com)
+2. 点击 **创建项目** → 输入名称 `medinexus`
+3. 点击 **创建服务** → **从 GitHub 导入**
+4. 选择仓库 `HTenets/MediNexus`
+5. Zeabur 自动识别项目类型，配置如下：
 
 | 字段 | 值 |
 |------|-----|
-| Name | `medinexus-db` |
-| Database | `medinexus` |
-| User | `medinexus` |
-| Plan | **Free** |
+| 语言/框架 | **Dockerfile** |
+| Dockerfile 路径 | `infrastructure/docker/Dockerfile.render` |
+| 端口 | `8000` |
 
-3. 点击 **Create Database**
-4. 等待创建完成（约 2-3 分钟）
-5. **复制 Internal Connection String**，格式类似：
-   ```
-   postgresql://medinexus:xxx@dpg-xxx.render.com/medinexus
-   ```
+6. 展开 **高级设置** → **环境变量**，添加：
+
+| 变量 | 值 |
+|------|-----|
+| `MEDINEXUS_DEMO_MODE` | `true` |
+| `MEDINEXUS_JWT_SECRET` | 随便填一个复杂字符串 |
+| `PYTHONPATH` | `/app/backend` |
+
+7. 点击 **部署**
+
+> ⏱ 首次构建约 3-5 分钟。完成后会显示 `https://medinexus.zeabur.app` 之类的域名
+
+### A2. Zeabur 添加数据库（可选）
+
+在 Zeabur 项目内：
+
+1. 点击 **新建服务** → **数据库** → **PostgreSQL**
+2. 选择 **Free** 套餐
+3. 创建后，复制连接串（Internal Connection String）
+4. 回到 medinexus 服务 → **环境变量** → 添加 `MEDINEXUS_DATABASE_URL` = 粘贴连接串
+5. 重新部署
+
+Redis 同理：新建服务 → **数据库** → **Redis**
+
+### A3. 配置自定义域名
+
+Zeabur 免费版提供 `xxx.zeabur.app` 子域名，也可以绑定自己的域名：
+- 服务 → **网络** → **域名** → 添加你的域名
 
 ---
 
-## 第2步：Render — 创建 Redis 实例
+## 🥈 方案B：Vercel + Koyeb
 
-1. 点击 **New +** → **Redis**
-2. 填写：
+> [Koyeb](https://www.koyeb.com) 国际平台，免费套餐无需绑卡，支持 Docker 部署。
 
-| 字段 | 值 |
-|------|-----|
-| Name | `medinexus-redis` |
-| Plan | **Free** |
+### 步骤
 
-3. 点击 **Create Redis**
-4. **复制 Internal Connection String**，格式类似：
-   ```
-   rediss://red-xxx.render.com:6379
-   ```
-
----
-
-## 第3步：Render — 创建 Web Service（后端 API）
-
-### 方式一：Blueprint 一键部署（推荐）
-
-1. 点击 **New +** → **Blueprint**
-2. 连接 GitHub 仓库 `HTenets/MediNexus`
-3. Render 自动读取 `render.yaml`，显示将创建的服务列表：
-   - `medinexus-api` (Web Service)
-   - `medinexus-db` (PostgreSQL)
-   - `medinexus-redis` (Redis)
-4. 点击 **Apply**
-5. 等待部署完成（约 3-5 分钟）
-
-### 方式二：手动创建（如果 Blueprint 失败）
-
-1. 点击 **New +** → **Web Service**
-2. 连接 GitHub 仓库 `HTenets/MediNexus`
-3. 填写配置：
+1. 登录 [Koyeb](https://app.koyeb.com)（GitHub 登录）
+2. 点击 **Create App**
+3. 选择 **Docker** → 输入以下配置：
 
 | 字段 | 值 |
 |------|-----|
-| Name | `medinexus-api` |
-| Runtime | **Docker** |
 | Dockerfile Path | `infrastructure/docker/Dockerfile.render` |
-| Plan | **Free** |
+| Port | `8000` |
 
-4. 展开 **Advanced** → **Environment Variables**，添加：
+4. 添加环境变量：
 
-| 变量 | 值 | 操作 |
-|------|-----|------|
-| `MEDINEXUS_DATABASE_URL` | 粘贴第1步复制的 PG 连接串 | 手动粘贴 |
-| `MEDINEXUS_REDIS_URL` | 粘贴第2步复制的 Redis 连接串 | 手动粘贴 |
-| `MEDINEXUS_JWT_SECRET` | — | 点击 **Generate** |
-| `MEDINEXUS_DEMO_MODE` | `true` | 手动输入 |
-| `PYTHONPATH` | `/app/backend` | 手动输入 |
+| 变量 | 值 |
+|------|-----|
+| `MEDINEXUS_DEMO_MODE` | `true` |
+| `MEDINEXUS_JWT_SECRET` | 随机字符串 |
+| `PYTHONPATH` | `/app/backend` |
 
-5. 点击 **Create Web Service**
+5. 点击 **Deploy**
 
-### 验证后端
-
-构建完成后，访问：
-```
-https://medinexus-api.onrender.com/health
-```
-
-预期返回：
-```json
-{"status":"ok","mode":"demo","version":"0.1.0"}
-```
-
-> ⚠️ 免费套餐首次冷启动约 10-30 秒，之后响应正常。
+> 免费额度：1 个 Web Service，1GB RAM，每月 5.5 美元等值额度，够用。
 
 ---
 
-## 第4步：Vercel — 部署前端
+## 🆓 方案D：纯 Demo 模式（最快体验）
+
+不需要任何数据库，所有数据存内存，重启丢失。适合快速演示。
+
+### 步骤
+
+1. **Zeabur** 创建服务，选择 Dockerfile，添加环境变量 `MEDINEXUS_DEMO_MODE=true`
+2. **Vercel** 部署前端，Root Directory 选 `frontend`
+3. 修改 `frontend/next.config.js` 中的代理地址为 Zeabur 分配的域名
+
+```js
+// next.config.js — 修改 destination 为你的 Zeabur 域名
+destination: process.env.NODE_ENV === "production"
+  ? "https://medinexus.zeabur.app/api/v1/:path*"
+  : "http://localhost:8000/api/v1/:path*",
+```
+
+---
+
+## 前端部署（所有方案通用）
 
 > 部署地址: https://vercel.com
 
 1. 点击 **Add New...** → **Project**
 2. 导入 GitHub 仓库 `HTenets/MediNexus`
-3. 配置项目：
+3. 配置：
 
 | 字段 | 值 | 说明 |
 |------|-----|------|
 | Framework Preset | **Next.js** | 自动识别 |
-| Root Directory | **`frontend`** | ⚠️ 必须选择此项！ |
-| Build Command | `npm run build` | 默认值 |
-| Output Directory | `.next` | 默认值 |
+| Root Directory | **`frontend`** | ⚠️ 必须选此项！ |
+| Build Command | `npm run build` | 默认 |
+| Output Directory | `.next` | 默认 |
 
-4. 环境变量：**无需手动添加**（`vercel.json` 已配置 API 代理）
-5. 点击 **Deploy**
-6. 等待部署完成（约 1-2 分钟）
-
-### 验证前端
-
-访问 Vercel 分配的域名（格式 `medinexus-xxx.vercel.app`）：
-- ✅ 首页正常显示
-- ✅ 点击「AI 问诊」进入对话页面
-- ✅ 输入症状，确认能收到 AI 回复
+4. 点击 **Deploy**
 
 ---
 
-## 第5步：常见问题排查
+## 验证部署
 
-### Q: WebSocket 连接失败？
+访问 Vercel 分配的域名：
+- ✅ 首页正常显示
+- ✅ 点击「AI 问诊」进入对话
+- ✅ 访问 `https://你的后端域名/health` 返回 `{"status":"ok","mode":"demo","version":"0.1.0"}`
+
+---
+
+## 常见问题
+
+### Q: WebSocket 连接不上？
 
 检查 `frontend/src/lib/websocket.ts` 中的 `getWsBase()`：
 - 生产环境默认连接 `wss://medinexus-api.onrender.com`
-- 确保 Render Web Service 处于 **Live** 状态
-- 首次请求需等待 10-30 秒（免费套餐冷启动）
+- 如果你用的是 Zeabur 或 Koyeb，**需要修改这里的地址**为你的后端域名
 
-### Q: Render 服务一直 Deploying？
+修改 `frontend/src/lib/websocket.ts` 第 20 行附近：
+```typescript
+// 改成你的后端域名
+return "wss://medinexus.zeabur.app";  // Zeabur 示例
+```
 
-- 检查 Docker build 日志：Dashboard → `medinexus-api` → **Events** → 点选最近的 Deploy
-- 常见原因：`PYTHONPATH` 环境变量未设置
-- 解决：在 **Environment** 中添加 `PYTHONPATH=/app/backend`，手动触发 **Deploy**
+### Q: Zeabur 免费额度够用吗？
+
+| 资源 | 免费额度 |
+|------|---------|
+| Web Service | 1 个免费服务 |
+| 构建时间 | 每月 1000 分钟 |
+| PostgreSQL | 1 个免费实例（256MB） |
+| Redis | 1 个免费实例 |
+| 域名 | `*.zeabur.app` 免费子域名 |
+| 绑卡 | ❌ 不需要（免费套餐） |
+
+> 流量不大的个人项目完全够用。如果不够，升级 Dev 套餐 $5/月。
+
+### Q: Zeabur 中国访问速度快吗？
+
+Zeabur 默认部署在美西节点，但中国用户访问速度优于 Render。付费版可选择**北京/上海节点**。
 
 ### Q: 如何更新代码？
 
@@ -178,27 +195,260 @@ git add .
 git commit -m "feat: xxx"
 git push
 # Vercel 自动重新部署
-# Render: Dashboard → medinexus-api → Manual Deploy → Deploy latest commit
+# Zeabur: Dashboard → 服务 → Manual Deploy → Redeploy
 ```
 
-### Q: Render 免费套餐的限制？
+### Q: 如何查看日志？
 
-| 资源 | 限制 |
+- **Vercel**: Dashboard → Deployments → 点选 → Function Logs
+- **Zeabur**: Dashboard → 服务 → **日志** 标签
+
+---
+
+## 原方案参考：Render（需绑卡）
+
+> 如果以上方案都不满足，Render 仍然可用，但需要绑定信用卡（即使选 Free 套餐）。
+> 操作步骤保留在下方供参考。
+
+### Render 创建 PostgreSQL
+
+1. 登录 [Render Dashboard](https://dashboard.render.com)
+2. 点击 **New +** → **PostgreSQL**
+3. Name: `medinexus-db` / Database: `medinexus` / User: `medinexus` / Plan: **Free**
+4. 创建后复制 Internal Connection String
+
+### Render 创建 Redis
+
+点击 **New +** → **Redis** → Name: `medinexus-redis` / Plan: **Free**
+
+### Render 创建 Web Service
+
+点击 **New +** → **Web Service** → 连接 GitHub 仓库 → 配置：
+
+| 字段 | 值 |
+|------|-----|
+| Name | `medinexus-api` |
+| Runtime | **Docker** |
+| Dockerfile Path | `infrastructure/docker/Dockerfile.render` |
+| Plan | **Free** |
+
+环境变量：
+
+| 变量 | 值 |
+|------|-----|
+| `MEDINEXUS_DATABASE_URL` | PG 连接串 |
+| `MEDINEXUS_REDIS_URL` | Redis 连接串 |
+| `MEDINEXUS_JWT_SECRET` | Generate |
+| `MEDINEXUS_DEMO_MODE` | `true` |
+| `PYTHONPATH` | `/app/backend` |
+
+---
+
+## ☁️ 方案E：阿里云轻量服务器自部署
+
+> 适合希望完全掌控服务器、追求最佳性能的用户。需绑定支付宝/信用卡。
+
+### 前置条件
+
+1. [阿里云](https://www.aliyun.com) 账号
+2. 轻量应用服务器实例（推荐配置见下方）
+3. 域名（可选，用于自定义访问地址）
+
+### E1. 服务器配置选择
+
+| 配置 | CPU | 内存 | 带宽 | 价格/月 | 适合 |
+|------|-----|------|------|---------|------|
+| ⚠️ 最小 | 2核 | 4GB | 3Mbps | ~50元 | Demo 测试，勉强运行 |
+| ✅ 推荐 | 2核 | 8GB | 5Mbps | ~80元 | 生产环境，流畅运行 |
+| 🚀 最佳 | 4核 | 8GB | 10Mbps | ~150元 | 高并发场景 |
+
+> **内存要求说明**：Qdrant（向量数据库）+ PostgreSQL（pgvector）+ Redis + 后端 + 前端 + Nginx，5个容器同时运行，4GB 会非常紧张，建议至少 8GB。
+
+### E2. 应用镜像选择
+
+| 选项 | 说明 | 推荐度 |
+|------|------|--------|
+| **Docker 镜像** | 预装 Docker 和 Docker Compose，开箱即用 | ⭐⭐⭐⭐⭐ |
+| **OpenCloudOS** | 基础 Linux 系统，需手动安装 Docker | ⭐⭐⭐ |
+
+**强烈推荐选择 Docker 镜像**，因为项目本身就是容器化架构，使用官方 Docker 镜像可以节省大量配置时间。
+
+### E3. 创建轻量应用服务器
+
+1. 登录 [阿里云控制台](https://ecs.console.aliyun.com)
+2. 点击 **轻量应用服务器** → **创建实例**
+3. 配置：
+
+| 配置项 | 值 |
+|--------|-----|
+| 地域 | 选择靠近你的用户的地域（如华东1、华北2） |
+| 可用区 | 默认即可 |
+| 镜像 | **应用镜像** → **Docker**（版本选最新） |
+| 套餐 | 2核8GB/5Mbps（推荐） |
+| 系统盘 | 默认 40GB SSD |
+| 购买时长 | 按需选择 |
+| 实例名称 | `medinexus-server` |
+
+4. 点击 **立即购买** → 完成支付
+
+### E4. 安全组配置
+
+在实例详情页 → **安全** → **防火墙**，添加以下规则：
+
+| 协议 | 端口 | 来源 | 说明 |
+|------|------|------|------|
+| TCP | 80 | 0.0.0.0/0 | HTTP 访问 |
+| TCP | 443 | 0.0.0.0/0 | HTTPS 访问（后续配置） |
+| TCP | 22 | 0.0.0.0/0 | SSH 登录 |
+| TCP | 5432 | 127.0.0.1/32 | PostgreSQL（仅本地访问） |
+| TCP | 6379 | 127.0.0.1/32 | Redis（仅本地访问） |
+| TCP | 6333 | 127.0.0.1/32 | Qdrant（仅本地访问） |
+
+> 数据库端口不要对外暴露，通过 Docker 网络内部访问即可。
+
+### E5. 登录服务器
+
+```bash
+ssh root@你的服务器公网IP
+```
+
+密码在实例详情页 → **重置密码** 获取。
+
+### E6. 安装依赖
+
+```bash
+# 更新系统
+apt update && apt upgrade -y
+
+# 安装 git
+apt install -y git
+
+# 确认 Docker 和 Docker Compose 已安装
+docker --version
+docker compose version
+```
+
+> 如果 Docker 未安装：`curl -fsSL https://get.docker.com | sh`
+
+### E7. 克隆代码
+
+```bash
+cd /opt
+git clone https://github.com/HTenets/MediNexus.git
+cd MediNexus
+```
+
+### E8. 配置环境变量
+
+```bash
+cp .env.docker .env
+vi .env
+```
+
+修改以下配置：
+
+```bash
+POSTGRES_PASSWORD=your-strong-db-password-here
+MEDINEXUS_JWT_SECRET=your-very-long-and-secure-jwt-secret-here
+MEDINEXUS_DEMO_MODE=false
+MEDINEXUS_ALLOWED_ORIGINS=http://你的服务器IP:80,http://你的域名.com
+NEXT_PUBLIC_API_URL=http://你的服务器IP:80
+```
+
+> 生成安全密钥：`openssl rand -hex 32`
+
+### E9. 启动服务
+
+```bash
+# 后台启动所有服务
+docker compose up -d
+```
+
+> ⏱ 首次构建约 5-10 分钟，取决于服务器带宽和配置。
+
+查看服务状态：
+
+```bash
+docker compose ps
+```
+
+### E10. 验证部署
+
+访问 `http://你的服务器公网IP`：
+- ✅ 首页正常显示
+- ✅ 点击「AI 问诊」进入对话
+- ✅ 访问 `http://你的服务器公网IP/health` 返回 `{"status":"ok"}`
+
+查看日志：
+
+```bash
+# 查看所有服务日志
+docker compose logs
+
+# 查看特定服务日志（如 backend）
+docker compose logs backend -f
+```
+
+### E11. 配置 HTTPS（可选但推荐）
+
+安装 Certbot 和 Nginx 插件：
+
+```bash
+apt install -y certbot python3-certbot-nginx
+```
+
+配置 Nginx 支持 HTTPS：
+
+```bash
+# 停止服务
+docker compose down
+
+# 修改 infrastructure/nginx/nginx.conf，添加 HTTPS 配置
+vi infrastructure/nginx/nginx.conf
+```
+
+获取 SSL 证书：
+
+```bash
+certbot certonly --standalone -d your-domain.com
+```
+
+更新 Nginx 配置，将证书路径填入配置文件，然后重启服务：
+
+```bash
+docker compose up -d
+```
+
+### E12. 数据持久化
+
+Docker Compose 已配置数据卷：
+- `pgdata`：PostgreSQL 数据
+- `qdrant_data`：Qdrant 向量数据
+
+数据卷默认存储在 `/var/lib/docker/volumes/`，会在服务器重启后保留。
+
+### E13. 自动更新
+
+推荐配置 Watchtower 自动更新 Docker 镜像：
+
+```bash
+docker run -d \
+  --name watchtower \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  containrrr/watchtower \
+  --schedule "0 0 4 * * *" \
+  --cleanup
+```
+
+### E14. 监控和维护
+
+| 操作 | 命令 |
 |------|------|
-| Web Service | 每月 750 小时（全天运行够用） |
-| PostgreSQL | 1GB 存储 |
-| Redis | 25MB 内存 |
-| 休眠策略 | 15 分钟无请求自动休眠 |
-| 唤醒延迟 | 首次请求 10-30 秒 |
-
-> 💡 可用 [UptimeRobot](https://uptimerobot.com) 每 14 分钟 ping `/health` 避免休眠
-
-### Q: Vercel 免费套餐的限制？
-
-| 资源 | 限制 |
-|------|------|
-| 带宽 | 100 GB/月 |
-| 构建时间 | 6000 分钟/月 |
+| 查看容器状态 | `docker compose ps` |
+| 查看日志 | `docker compose logs -f` |
+| 重启服务 | `docker compose restart` |
+| 更新代码 | `git pull && docker compose up -d --build` |
+| 清理未使用资源 | `docker system prune -a` |
 
 ---
 
@@ -206,15 +456,20 @@ git push
 
 | 文件 | 用途 |
 |------|------|
+| `docker-compose.yml` | Docker Compose 编排（包含全部服务） |
+| `.env.docker` | 生产环境环境变量模板 |
+| `infrastructure/nginx/nginx.conf` | Nginx 反向代理配置 |
+| `infrastructure/nginx/Dockerfile` | Nginx 镜像构建文件 |
+| `infrastructure/docker/Dockerfile.backend` | 后端 API 镜像 |
+| `infrastructure/docker/Dockerfile.frontend` | 前端 Next.js 镜像 |
+| `infrastructure/docker/Dockerfile.render` | 后端 Docker 镜像（Zeabur/Render/Koyeb 通用） |
 | `frontend/vercel.json` | Vercel 部署配置 + API 代理规则 |
-| `frontend/.env.production` | 生产环境变量 |
-| `frontend/next.config.js` | Next.js 配置（开发/生产环境感知代理） |
-| `render.yaml` | Render Blueprint（一键部署模板） |
-| `infrastructure/docker/Dockerfile.render` | Render 专用 Dockerfile |
+| `frontend/next.config.js` | Next.js 配置（支持环境变量 API 地址） |
+| `render.yaml` | Render Blueprint（已废弃，仅保留参考） |
 | `backend/requirements.txt` | Python 依赖清单 |
-| `backend/app/config.py` | 配置类（`demo_mode` 等环境变量注入） |
+| `backend/app/config.py` | 配置类（支持 `allowed_origins` 环境变量） |
 | `backend/app/core/database.py` | 数据库引擎（无 DB 时优雅降级） |
-| `backend/app/main.py` | 入口（Demo/Production 模式切换 + CORS） |
+| `backend/app/main.py` | 入口（支持环境变量 CORS 白名单） |
 | `backend/app/api/health.py` | 健康检查（返回 mode/version） |
-| `frontend/src/lib/websocket.ts` | WebSocket 客户端（生产环境连接 Render） |
+| `frontend/src/lib/websocket.ts` | WebSocket 客户端（需按实际后端地址修改） |
 | `docs/deploy-vercel-render.md` | **本文档** |

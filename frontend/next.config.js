@@ -1,15 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
+    const apiHost = process.env.NEXT_PUBLIC_API_HOST || process.env.NODE_ENV === "production"
+      ? "http://localhost:80"
+      : "http://localhost:8000";
+    
     return [
       {
         source: "/api/:path*",
-        destination:
-          process.env.NODE_ENV === "production"
-            ? "https://medinexus-api.onrender.com/api/v1/:path*"
-            : "http://localhost:8000/api/v1/:path*",
+        destination: `${apiHost}/api/v1/:path*`,
       },
     ];
   },
 };
+
 module.exports = nextConfig;

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://localhost:11434"
     demo_mode: bool = True
+    allowed_origins: str = "*"
 
     model_config = {"env_file": ".env", "env_prefix": "MEDINEXUS_"}
 

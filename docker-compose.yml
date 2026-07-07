@@ -2,9 +2,9 @@ services:
   postgres:
     image: pgvector/pgvector:pg17
     environment:
-      POSTGRES_DB: medinexus
-      POSTGRES_USER: medinexus
-      POSTGRES_PASSWORD: medinexus_dev
+      POSTGRES_DB: ${POSTGRES_DB:-medinexus}
+      POSTGRES_USER: ${POSTGRES_USER:-medinexus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medinexus_dev}
     ports:
       - "5432:5432"
     healthcheck:
@@ -14,6 +14,7 @@ services:
       retries: 5
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -24,6 +25,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -31,18 +33,19 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
+    restart: unless-stopped
 
   backend:
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.backend
-    ports:
-      - "8000:8000"
     environment:
-      MEDINEXUS_DATABASE_URL: postgresql+asyncpg://medinexus:medinexus_dev@postgres:5432/medinexus
-      MEDINEXUS_REDIS_URL: redis://redis:6379/0
-      MEDINEXUS_QDRANT_URL: http://qdrant:6333
-      MEDINEXUS_JWT_SECRET: dev-secret-change-in-production
+      MEDINEXUS_DATABASE_URL: ${MEDINEXUS_DATABASE_URL:-postgresql+asyncpg://medinexus:medinexus_dev@postgres:5432/medinexus}
+      MEDINEXUS_REDIS_URL: ${MEDINEXUS_REDIS_URL:-redis://redis:6379/0}
+      MEDINEXUS_QDRANT_URL: ${MEDINEXUS_QDRANT_URL:-http://qdrant:6333}
+      MEDINEXUS_JWT_SECRET: ${MEDINEXUS_JWT_SECRET:-dev-secret-change-in-production}
+      MEDINEXUS_DEMO_MODE: ${MEDINEXUS_DEMO_MODE:-false}
+      MEDINEXUS_ALLOWED_ORIGINS: ${MEDINEXUS_ALLOWED_ORIGINS:-*}
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,6 +53,43 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.worker
+    environment:
+      MEDINEXUS_DATABASE_URL: ${MEDINEXUS_DATABASE_URL:-postgresql+asyncpg://medinexus:medinexus_dev@postgres:5432/medinexus}
+      MEDINEXUS_REDIS_URL: ${MEDINEXUS_REDIS_URL:-redis://redis:6379/0}
+      MEDINEXUS_QDRANT_URL: ${MEDINEXUS_QDRANT_URL:-http://qdrant:6333}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: infrastructure/nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
 
 volumes:
   pgdata:
