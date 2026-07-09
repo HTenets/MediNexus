@@ -1,19 +1,37 @@
 "use client";
 
-import { IconAlert } from "./icons";
+import { motion } from "framer-motion";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Button } from "./Button";
 
-export default function ErrorState({ message = "加载失败", onRetry }: { message?: string; onRetry?: () => void }) {
+interface ErrorStateProps {
+  message?: string;
+  onRetry?: () => void;
+}
+
+export function ErrorState({ message = "加载失败，请重试", onRetry }: ErrorStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
-        <IconAlert className="w-6 h-6 text-red-500" />
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center justify-center gap-6 py-16"
+    >
+      <motion.div
+        animate={{ rotate: [0, -5, 5, -5, 0] }}
+        transition={{ duration: 2, repeat: Infinity }}
+        className="w-20 h-20 rounded-full bg-medical-danger-light flex items-center justify-center"
+      >
+        <AlertTriangle className="w-10 h-10 text-medical-danger" />
+      </motion.div>
+      <div className="text-center">
+        <h3 className="font-heading text-xl font-bold text-medical-text-primary mb-2">出错了</h3>
+        <p className="text-medical-text-secondary">{message}</p>
       </div>
-      <p className="text-sm text-[var(--color-muted-foreground)] mb-5">{message}</p>
       {onRetry && (
-        <button onClick={onRetry} className="btn-secondary-medical text-sm px-5 py-2">
-          重新加载
-        </button>
+        <Button onClick={onRetry} variant="outline" leftIcon={<RefreshCw className="w-4 h-4" />}>
+          重试
+        </Button>
       )}
-    </div>
+    </motion.div>
   );
 }

@@ -1,28 +1,39 @@
 "use client";
 
-import Link from "next/link";
-import { IconClipboard } from "./icons";
+import { motion } from "framer-motion";
+import { FileText } from "lucide-react";
+import { Button } from "./Button";
 
-export default function EmptyState({
-  title, description, actionLabel, actionHref,
-}: {
-  icon?: string; title: string; description: string;
-  actionLabel?: string; actionHref?: string;
-}) {
+interface EmptyStateProps {
+  title: string;
+  description?: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+export function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-[var(--color-muted)] flex items-center justify-center mb-5">
-        <IconClipboard className="w-7 h-7 text-[var(--color-muted-foreground)]" />
-      </div>
-      <h3 className="text-lg font-semibold text-[var(--color-foreground)] mb-1.5" style={{ fontFamily: 'var(--font-heading)' }}>
-        {title}
-      </h3>
-      <p className="text-sm text-[var(--color-muted-foreground)] mb-6 max-w-xs leading-relaxed">{description}</p>
-      {actionLabel && actionHref && (
-        <Link href={actionHref} className="btn-primary-medical inline-flex">
-          {actionLabel}
-        </Link>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col items-center justify-center py-16 text-center"
+    >
+      <motion.div
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration: 2, repeat: Infinity }}
+        className="w-24 h-24 rounded-full bg-medical-primary-light flex items-center justify-center mb-6"
+      >
+        <FileText className="w-12 h-12 text-medical-primary" />
+      </motion.div>
+      <h3 className="font-heading text-xl font-bold text-medical-text-primary mb-2">{title}</h3>
+      {description && <p className="text-medical-text-secondary mb-6 max-w-md">{description}</p>}
+      {action && (
+        <Button onClick={action.onClick}>
+          {action.label}
+        </Button>
       )}
-    </div>
+    </motion.div>
   );
 }

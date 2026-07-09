@@ -1,9 +1,11 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, useCallback } from "react";
 import ChatMessage from "./ChatMessage";
 import ChatInput from "./ChatInput";
 import { ConsultationSocket } from "@/lib/websocket";
+import { Wifi, WifiOff, Clock, RefreshCw } from "lucide-react";
 
 interface Message {
   id: string;
@@ -16,9 +18,10 @@ interface Message {
 interface ChatContainerProps {
   sessionId: string;
   socket: ConsultationSocket | null;
+  quickSymptoms?: string[];
 }
 
-export default function ChatContainer({ sessionId, socket }: ChatContainerProps) {
+export default function ChatContainer({ sessionId, socket, quickSymptoms = [] }: ChatContainerProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -30,12 +33,10 @@ export default function ChatContainer({ sessionId, socket }: ChatContainerProps)
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Listen for WebSocket events
   useEffect(() => {
     if (!socket) return;
 
@@ -106,43 +107,105 @@ export default function ChatContainer({ sessionId, socket }: ChatContainerProps)
     [socket]
   );
 
+  const handleQuickSymptom = (symptom: string) => {
+    handleSend(`我有${symptom}症状`);
+  };
+
   return (
     <div className="flex flex-col h-full">
-      {/* Connection status */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 bg-white">
-        <div className="flex items-center gap-2">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              connected ? "bg-green-500" : "bg-red-400"
-            }`}
-          />
-          <span className="text-xs text-gray-500">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between px-4 py-3 border-b border-medical-border bg-gray-50/50"
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full ${connected ? "bg-medical-accent" : "bg-medical-danger"} animate-pulse`} />
+          <span className="text-xs font-medium text-medical-text-secondary">
             {connected ? "已连接" : "连接中..."}
           </span>
+          {connected ? (
+            <Wifi className="w-3.5 h-3.5 text-medical-accent" />
+          ) : (
+            <WifiOff className="w-3.5 h-3.5 text-medical-danger" />
+          )}
         </div>
-        <span className="text-xs text-gray-400">会话: {sessionId.slice(0, 8)}</span>
-      </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-medical-text-muted">
+            <Clock className="w-3.5 h-3.5" />
+            <span>会话: {sessionId.slice(0, 8)}</span>
+          </div>
+          <button
+            onClick={() => socket?.connect()}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-medical-text-muted hover:text-medical-primary hover:bg-medical-primary-light transition-all"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </motion.div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-        {messages.map((msg) => (
-          <ChatMessage key={msg.id} {...msg} />
-        ))}
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <AnimatePresence>
+          {messages.map((msg) => (
+            <ChatMessage key={msg.id} {...msg} />
+          ))}
+        </AnimatePresence>
+
         {isProcessing && !messages.some((m) => m.streaming) && (
-          <div className="flex justify-start mb-4">
-            <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-3">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex gap-3"
+          >
+            <div className="w-11 h-11 rounded-xl bg-medical-primary-light flex items-center justify-center flex-shrink-0">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-5 h-5 border-2 border-medical-primary/30 border-t-medical-primary rounded-full"
+              />
+            </div>
+            <div className="bg-white border border-medical-border rounded-2xl rounded-bl-sm p-4 shadow-medical-sm">
+              <div className="flex gap-2">
+                <motion.span
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                  className="w-2 h-2 bg-medical-primary/40 rounded-full"
+                />
+                <motion.span
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                  className="w-2 h-2 bg-medical-primary/40 rounded-full"
+                />
+                <motion.span
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                  className="w-2 h-2 bg-medical-primary/40 rounded-full"
+                />
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {quickSymptoms.length > 0 && (
+        <div className="px-4 py-3 border-t border-medical-border bg-gray-50/50">
+          <div className="text-xs text-medical-text-muted mb-2">快速选择症状（点击即可发送）：</div>
+          <div className="flex flex-wrap gap-2">
+            {quickSymptoms.map((symptom) => (
+              <button
+                key={symptom}
+                onClick={() => handleQuickSymptom(symptom)}
+                disabled={isProcessing}
+                className="border border-medical-border bg-white rounded-full px-3 py-1 text-sm text-medical-text-secondary cursor-pointer hover:border-medical-primary hover:text-medical-primary hover:bg-medical-primary-light transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {symptom}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <ChatInput onSend={handleSend} disabled={isProcessing} />
     </div>
   );
