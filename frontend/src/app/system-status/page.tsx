@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
-import { Server, Activity, Clock, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import { Server, Activity, Clock, AlertTriangle, CheckCircle, RefreshCw, Info } from "lucide-react";
+import { healthCheck, ApiError, HealthCheckResponse } from "@/lib/api";
+import { Button } from "@/components/ui/Button";
+import { LoadingState } from "@/components/ui/LoadingState";
 
 interface Service {
   name: string;
@@ -15,25 +18,37 @@ export default function SystemStatusPage() {
   const [uptime, setUptime] = useState("99.97%");
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [version, setVersion] = useState("");
+  const [mode, setMode] = useState("");
+
+  const mockServices = [
+    { name: "AI 分诊服务", status: "healthy", latency: "15ms" },
+    { name: "诊断引擎", status: "healthy", latency: "23ms" },
+    { name: "知识库服务", status: "healthy", latency: "8ms" },
+    { name: "WebSocket 服务", status: "healthy", latency: "5ms" },
+  ];
+
+  const fetchStatus = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data: HealthCheckResponse = await healthCheck();
+      setOverall(data.status === "ok" ? "healthy" : "异常");
+      setUptime(data.mode === "demo" ? "100%" : "99.97%");
+      setServices(mockServices);
+      setVersion(data.version);
+      setMode(data.mode);
+    } catch (err) {
+      setError(err as ApiError);
+      setServices(mockServices);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetch("/api/mock/system-status")
-      .then((r) => r.json())
-      .then((d) => {
-        setOverall(d.overall || "healthy");
-        setUptime(d.uptime || "99.97%");
-        setServices(d.services || []);
-        setLoading(false);
-      })
-      .catch(() => {
-        setServices([
-          { name: "AI 分诊服务", status: "healthy", latency: "15ms" },
-          { name: "诊断引擎", status: "healthy", latency: "23ms" },
-          { name: "知识库服务", status: "healthy", latency: "8ms" },
-          { name: "WebSocket 服务", status: "healthy", latency: "5ms" },
-        ]);
-        setLoading(false);
-      });
+    fetchStatus();
   }, []);
 
   return (
@@ -44,13 +59,10 @@ export default function SystemStatusPage() {
             <h1 className="font-heading text-3xl font-bold text-medical-text-primary mb-2">系统状态</h1>
             <p className="text-medical-text-secondary">实时监控 MediNexus 各服务组件的运行状态。</p>
           </div>
-          <button
-            onClick={() => setLoading(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-medical-border rounded-xl text-sm text-medical-text-secondary hover:text-medical-primary hover:border-medical-primary transition-all"
-          >
+          <Button onClick={fetchStatus} variant="outline" size="sm" className="gap-2">
             <RefreshCw className="w-4 h-4" />
             刷新状态
-          </button>
+          </Button>
         </div>
 
         <div className="grid grid-cols-4 gap-4 mb-6">
@@ -63,13 +75,13 @@ export default function SystemStatusPage() {
               bg: overall === "healthy" ? "bg-medical-accent-light" : "bg-medical-warning-light",
             },
             { label: "运行时间", value: uptime, icon: Clock, color: "text-medical-primary", bg: "bg-medical-primary-light" },
-            { label: "服务总数", value: String(services.length), icon: Server, color: "text-medical-purple", bg: "bg-medical-purple-light" },
+            { label: "版本号", value: version || "-", icon: Info, color: "text-medical-purple", bg: "bg-medical-purple-light" },
             {
-              label: "告警",
-              value: String(services.filter((s) => s.status !== "healthy").length),
-              icon: AlertTriangle,
-              color: "text-medical-danger",
-              bg: "bg-medical-danger-light",
+              label: "运行模式",
+              value: mode === "demo" ? "演示模式" : mode === "production" ? "生产模式" : "-",
+              icon: Server,
+              color: mode === "demo" ? "text-medical-warning" : "text-medical-accent",
+              bg: mode === "demo" ? "bg-medical-warning-light" : "bg-medical-accent-light",
             },
           ].map((stat) => (
             <div key={stat.label} className="glass-card rounded-2xl p-5">
@@ -85,16 +97,16 @@ export default function SystemStatusPage() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex gap-2">
-              {[0, 150, 300].map((d) => (
-                <span
-                  key={d}
-                  className="w-2 h-2 bg-medical-primary/40 rounded-full animate-bounce"
-                  style={{ animationDelay: `${d}ms` }}
-                />
-              ))}
-            </div>
+          <LoadingState />
+        ) : error ? (
+          <div className="glass-card rounded-2xl p-8 text-center">
+            <AlertTriangle className="w-12 h-12 text-medical-warning mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-medical-text-primary mb-2">获取系统状态失败</h3>
+            <p className="text-medical-text-secondary mb-4">{error.message}</p>
+            <Button onClick={fetchStatus} variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              重试
+            </Button>
           </div>
         ) : (
           <div className="glass-card rounded-2xl overflow-hidden">

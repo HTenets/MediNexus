@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Brain,
@@ -16,7 +16,7 @@ import {
   LogOut,
   User,
 } from "lucide-react";
-
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { href: "/dashboard", label: "控制台", icon: LayoutDashboard },
@@ -36,14 +36,30 @@ interface AppShellProps {
 export default function AppShell({ children, stageLabel = "AI助手在线", activePath }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, isLoggedIn, logout, loading } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const current = activePath || pathname;
 
+  useEffect(() => {
+    if (!loading && !isLoggedIn && pathname !== "/login") {
+      router.push("/login");
+    }
+  }, [isLoggedIn, loading, pathname, router]);
+
   const handleLogout = () => {
     setShowLogout(false);
+    logout();
     router.push("/login");
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-medical-bg items-center justify-center">
+        <div className="w-12 h-12 gradient-primary rounded-xl animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-medical-bg">
@@ -126,11 +142,11 @@ export default function AppShell({ children, stageLabel = "AI助手在线", acti
                   className="flex items-center gap-3 px-2 py-1.5 rounded-full hover:bg-medical-primary-light transition-all"
                 >
                   <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-semibold shadow-medical-sm border-2 border-white">
-                    DS
+                    {user?.name ? user.name.slice(0, 2).toUpperCase() : "U"}
                   </div>
                   {!collapsed && (
                     <span className="text-sm font-medium text-medical-text-primary whitespace-nowrap">
-                      Demo User
+                      {user?.name || "用户"}
                     </span>
                   )}
                 </button>

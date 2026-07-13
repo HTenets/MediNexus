@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/layout/AppShell";
-import { getConsultation } from "@/lib/api";
-import { CheckCircle, Clock, User, FileText, AlertTriangle, ArrowLeft } from "lucide-react";
+import { getConsultation, ApiError, ConsultationStatus } from "@/lib/api";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { Button } from "@/components/ui/Button";
+import { CheckCircle, Clock, User, FileText, AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
 
 function getSessionId() {
   if (typeof window === "undefined") return "";
@@ -13,27 +15,48 @@ function getSessionId() {
 
 export default function SummaryPage() {
   const sid = getSessionId();
-  const [session, setSession] = useState<{ session_id: string; status: string; current_agent: string; history: any[] } | null>(null);
+  const [session, setSession] = useState<ConsultationStatus | null>(null);
   const [loading, setLoading] = useState(sid ? true : false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = () => {
+    if (!sid) {
+      setError("缺少会话 ID");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    getConsultation(sid)
+      .then(setSession)
+      .catch((err: ApiError) => {
+        setError(err.message || "获取会话数据失败");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
   useEffect(() => {
-    if (sid) {
-      getConsultation(sid).then(setSession).catch(() => setLoading(false)).finally(() => setLoading(false));
-    }
+    loadData();
   }, [sid]);
+
+  const soapData = session?.history?.[session.history.length - 1]?.soap || { subjective: "", objective: "", assessment: "", plan: "" };
 
   return (
     <AppShell stageLabel="问诊总结 阶段 4/4">
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="flex gap-1.5">
-            {[0, 150, 300].map((d) => (
-              <span
-                key={d}
-                className="w-2 h-2 bg-medical-primary/40 rounded-full animate-bounce"
-                style={{ animationDelay: `${d}ms` }}
-              />
-            ))}
+        <div className="flex items-center justify-center h-[60vh]">
+          <LoadingState text="加载会话数据中..." />
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center">
+            <AlertTriangle className="w-12 h-12 text-medical-warning mx-auto mb-4" />
+            <p className="text-lg text-medical-text-primary mb-4">{error}</p>
+            <Button onClick={loadData} leftIcon={<RefreshCw className="w-4 h-4" />}>
+              刷新重试
+            </Button>
           </div>
         </div>
       ) : (
@@ -61,6 +84,14 @@ export default function SummaryPage() {
                 >
                   重新问诊
                 </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadData}
+                  leftIcon={<RefreshCw className="w-4 h-4" />}
+                >
+                  刷新数据
+                </Button>
               </div>
             </div>
           </div>
@@ -71,9 +102,9 @@ export default function SummaryPage() {
               <div className="grid grid-cols-4 gap-4">
                 {[
                   ["会话 ID", sid || session?.session_id || "—"],
-                  ["完成时间", new Date().toLocaleString()],
-                  ["参与 Agent", "导诊 / 诊断 / 审方 / 随访"],
-                  ["证据等级", "B 级 (医学共识)"],
+                  ["完成时间", session?.history?.[session.history.length - 1]?.timestamp ? new Date(session.history[session.history.length - 1].timestamp as string).toLocaleString() : new Date().toLocaleString()],
+                  ["参与 Agent", session?.current_agent || "导诊 / 诊断 / 审方 / 随访"],
+                  ["状态", session?.status || "已完成"],
                 ].map(([k, v]) => (
                   <div key={k}>
                     <div className="text-xs text-medical-text-muted mb-1">{k}</div>
@@ -94,16 +125,16 @@ export default function SummaryPage() {
                   "S 主观资料 (Subjective)",
                   "S",
                   "bg-medical-primary",
-                  "患者主诉头痛两天，伴有低热（37.8°C），无恶心呕吐，无颈部僵硬。",
+                  soapData?.subjective || "患者主诉头痛两天，伴有低热（37.8°C），无恶心呕吐，无颈部僵硬。",
                 ],
-                ["O 客观资料 (Objective)", "O", "bg-medical-accent", "体温 37.8°C，暂无线下查体数据。"],
+                ["O 客观资料 (Objective)", "O", "bg-medical-accent", soapData?.objective || "体温 37.8°C，暂无线下查体数据。"],
                 [
                   "A 评估 (Assessment)",
                   "A",
                   "bg-medical-warning",
-                  "急性上呼吸道感染可能，伴紧张性头痛或偏头痛发作。",
+                  soapData?.assessment || "急性上呼吸道感染可能，伴紧张性头痛或偏头痛发作。",
                 ],
-                ["P 计划 (Plan)", "P", "bg-medical-purple", "对症处理，休息补液；若症状加重或高热持续，建议线下就医。"],
+                ["P 计划 (Plan)", "P", "bg-medical-purple", soapData?.plan || "对症处理，休息补液；若症状加重或高热持续，建议线下就医。"],
               ].map(([label, letter, color, text]) => (
                 <div key={label} className="mb-4 last:mb-0">
                   <div className="flex items-center gap-2 mb-2">

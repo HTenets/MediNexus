@@ -1,9 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AppShell from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { LoadingState } from "@/components/ui/LoadingState";
 import {
   FileText,
   Calendar,
@@ -18,93 +21,17 @@ import {
   Brain,
   CheckCircle,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react";
+import {
+  listRecords,
+  getPatient,
+  ApiError,
+  MedicalRecord,
+  Patient,
+} from "@/lib/api";
 
-const mockRecords = [
-  {
-    id: "REC20260612001",
-    date: "2026-06-12",
-    type: "AI 智能问诊",
-    summary: "急性上呼吸道感染，伴头痛、发热、心悸",
-    status: "completed",
-    department: "内科",
-    doctor: "AI 诊断系统",
-  },
-  {
-    id: "REC20260520002",
-    date: "2026-05-20",
-    type: "健康咨询",
-    summary: "偏头痛用药建议，生活方式指导",
-    status: "completed",
-    department: "神经科",
-    doctor: "AI 诊断系统",
-  },
-  {
-    id: "REC20260415003",
-    date: "2026-04-15",
-    type: "检查报告",
-    summary: "年度体检报告，各项指标基本正常",
-    status: "completed",
-    department: "体检中心",
-    doctor: "线下医院",
-  },
-  {
-    id: "REC20260308004",
-    date: "2026-03-08",
-    type: "AI 智能问诊",
-    summary: "皮肤过敏咨询，建议避免接触过敏原",
-    status: "completed",
-    department: "皮肤科",
-    doctor: "AI 诊断系统",
-  },
-];
-
-const overviewStats = [
-  {
-    label: "综合健康评分",
-    value: "92",
-    unit: "/100",
-    progress: 92,
-    color: "text-medical-primary",
-    bgColor: "bg-medical-primary",
-  },
-  {
-    label: "生物学年龄",
-    value: "34",
-    unit: "岁",
-    badge: "↓ -2岁",
-    badgeColor: "bg-medical-accent-light text-medical-accent",
-  },
-  {
-    label: "最近问诊",
-    value: "急性上呼吸道感染",
-    subValue: "2026-06-12 · 已完结",
-  },
-  {
-    label: "待随访任务",
-    value: "3",
-    subValue: "1 项即将到期",
-    valueColor: "text-medical-warning",
-  },
-];
-
-const vitalsData = [
-  { label: "血压", value: "128/82 mmHg" },
-  { label: "心率", value: "72 bpm" },
-  { label: "BMI", value: "22.4" },
-  { label: "血红蛋白", value: "13.5 g/dL", valueColor: "text-medical-accent" },
-];
-
-const medications = [
-  { name: "对乙酰氨基酚", dosage: "500mg · 每6小时一次" },
-  { name: "布洛芬", dosage: "200mg · 必要时服用" },
-];
-
-const healthMemories = [
-  { label: "慢性偏头痛史 (先兆型)", tag: "高置信度", tagColor: "bg-medical-primary-light text-medical-primary" },
-  { label: "轻度青霉素过敏", tag: "医生已验证", tagColor: "bg-medical-warning-light text-medical-warning" },
-  { label: "倾向于清晨预约", tag: "推断行为", tagColor: "bg-gray-100 text-gray-600" },
-];
+const PATIENT_ID = "patient_demo_001";
 
 const followUps = [
   {
@@ -128,32 +55,189 @@ const followUps = [
   },
 ];
 
-const timelineData = [
-  {
-    title: "急性上呼吸道感染 AI 问诊",
-    date: "2026-06-12",
-    source: "MediNexus AI 问诊系统",
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toISOString().split("T")[0];
+}
+
+function getRecordType(diagnosis: string): string {
+  if (!diagnosis) return "AI 智能问诊";
+  if (diagnosis.includes("体检") || diagnosis.includes("检查")) return "检查报告";
+  if (diagnosis.includes("咨询") || diagnosis.includes("建议")) return "健康咨询";
+  return "AI 智能问诊";
+}
+
+function extractMedications(plan: string): Array<{ name: string; dosage: string }> {
+  if (!plan) return [];
+  const lines = plan.split("\n").filter((line) => line.trim());
+  return lines.map((line) => {
+    const parts = line.split("·").map((p) => p.trim());
+    return {
+      name: parts[0] || "未知药物",
+      dosage: parts[1] || "",
+    };
+  });
+}
+
+function extractVitals(objective: string): Array<{ label: string; value: string; valueColor?: string }> {
+  if (!objective) return [];
+  const vitals: Array<{ label: string; value: string; valueColor?: string }> = [];
+  const patterns = [
+    { regex: /血压\s*[：:]\s*([\d\/.]+)/, label: "血压", unit: " mmHg" },
+    { regex: /心率\s*[：:]\s*(\d+)/, label: "心率", unit: " bpm" },
+    { regex: /体温\s*[：:]\s*([\d.]+)/, label: "体温", unit: " °C" },
+    { regex: /BMI\s*[：:]\s*([\d.]+)/, label: "BMI", unit: "" },
+  ];
+  patterns.forEach(({ regex, label, unit }) => {
+    const match = objective.match(regex);
+    if (match) {
+      vitals.push({ label, value: match[1] + unit });
+    }
+  });
+  return vitals.length > 0 ? vitals : [
+    { label: "暂无体征数据", value: "-" },
+  ];
+}
+
+function mapHealthMemories(patient: Patient): Array<{ label: string; tag: string; tagColor: string }> {
+  const memories: Array<{ label: string; tag: string; tagColor: string }> = [];
+  
+  patient.medical_history.forEach((history) => {
+    memories.push({
+      label: history,
+      tag: "高置信度",
+      tagColor: "bg-medical-primary-light text-medical-primary",
+    });
+  });
+  
+  patient.allergies.forEach((allergy) => {
+    memories.push({
+      label: `${allergy}过敏`,
+      tag: "医生已验证",
+      tagColor: "bg-medical-warning-light text-medical-warning",
+    });
+  });
+  
+  return memories.length > 0 ? memories : [
+    { label: "暂无健康记忆", tag: "-", tagColor: "bg-gray-100 text-gray-600" },
+  ];
+}
+
+function getTimelineData(records: MedicalRecord[]) {
+  return records.map((record) => ({
+    title: `${record.diagnosis} ${getRecordType(record.diagnosis)}`,
+    date: formatDate(record.date),
+    source: record.doctor,
     status: "问诊已完成 · 生成诊断建议与用药方案",
     statusColor: "bg-medical-primary-light text-medical-primary",
     active: true,
-  },
-  {
-    title: "综合代谢组图 (CMP)",
-    date: "2023-10-15",
-    source: "瑞金医院 · 检验科",
-    file: "综合代谢组图报告.pdf",
-    active: false,
-  },
-  {
-    title: "年度体检",
-    date: "2023-03-20",
-    source: "华山医院 · 体检中心",
-    file: "2023年度体检报告.pdf",
-    active: false,
-  },
-];
+  }));
+}
 
 export default function RecordsPage() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [patient, setPatient] = useState<Patient | null>(null);
+
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [recordsRes, patientRes] = await Promise.all([
+        listRecords(PATIENT_ID),
+        getPatient(PATIENT_ID),
+      ]);
+      setRecords(recordsRes.records || []);
+      setPatient(patientRes);
+    } catch (err) {
+      setError(err as ApiError);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const vitalsData = records.length > 0 ? extractVitals(records[0].objective) : [
+    { label: "暂无体征数据", value: "-" },
+  ];
+
+  const medications = records.length > 0 ? extractMedications(records[0].plan) : [];
+
+  const healthMemories = patient ? mapHealthMemories(patient) : [];
+
+  const timelineData = getTimelineData(records);
+
+  const recentRecords = records.map((record) => ({
+    id: record.id,
+    date: formatDate(record.date),
+    type: getRecordType(record.diagnosis),
+    summary: record.subjective || record.assessment || "暂无摘要",
+    status: "completed",
+    department: record.department,
+    doctor: record.doctor,
+  }));
+
+  const overviewStats = [
+    {
+      label: "综合健康评分",
+      value: "92",
+      unit: "/100",
+      progress: 92,
+      color: "text-medical-primary",
+      bgColor: "bg-medical-primary",
+    },
+    {
+      label: "生物学年龄",
+      value: "34",
+      unit: "岁",
+      badge: "↓ -2岁",
+      badgeColor: "bg-medical-accent-light text-medical-accent",
+    },
+    {
+      label: "最近问诊",
+      value: records.length > 0 ? records[0].diagnosis : "-",
+      subValue: records.length > 0 ? `${formatDate(records[0].date)} · 已完结` : "-",
+    },
+    {
+      label: "待随访任务",
+      value: "3",
+      subValue: "1 项即将到期",
+      valueColor: "text-medical-warning",
+    },
+  ];
+
+  if (loading) {
+    return (
+      <AppShell stageLabel="健康档案中心" activePath="/records">
+        <LoadingState />
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell stageLabel="健康档案中心" activePath="/records">
+        <div className="flex flex-col items-center justify-center h-full py-20">
+          <AlertTriangle className="w-16 h-16 text-medical-warning mb-4" />
+          <h3 className="text-xl font-semibold text-medical-text-primary mb-2">
+            加载失败
+          </h3>
+          <p className="text-medical-text-secondary mb-6">
+            {error.message}
+          </p>
+          <Button onClick={loadData} className="gap-2">
+            <RefreshCw className="w-4 h-4" />
+            重试
+          </Button>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell stageLabel="健康档案中心" activePath="/records">
       <div className="space-y-6">
@@ -176,6 +260,14 @@ export default function RecordsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={loadData}
+              className="gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              刷新
+            </Button>
             <Link
               href="/upload-report"
               className="inline-flex items-center gap-2 px-4 py-2.5 border border-medical-border rounded-xl text-sm text-medical-text-secondary hover:bg-white transition-colors"
@@ -291,17 +383,25 @@ export default function RecordsPage() {
                 当前用药
               </h3>
               <div className="space-y-3">
-                {medications.map((med, index) => (
-                  <div key={index} className="bg-white/60 rounded-xl p-3">
-                    <div className="flex items-center gap-2 text-sm font-medium text-medical-text-primary">
-                      <Pill className="w-4 h-4 text-medical-primary" />
-                      {med.name}
+                {medications.length > 0 ? (
+                  medications.map((med, index) => (
+                    <div key={index} className="bg-white/60 rounded-xl p-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-medical-text-primary">
+                        <Pill className="w-4 h-4 text-medical-primary" />
+                        {med.name}
+                      </div>
+                      {med.dosage && (
+                        <div className="text-xs text-medical-text-muted mt-0.5 ml-6">
+                          {med.dosage}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-xs text-medical-text-muted mt-0.5 ml-6">
-                      {med.dosage}
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-medical-text-muted text-center py-4">
+                    暂无用药信息
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </motion.div>
@@ -370,40 +470,40 @@ export default function RecordsPage() {
               </div>
               <div className="relative pl-8">
                 <div className="absolute left-[11px] top-0 bottom-0 w-0.5 bg-gray-200" />
-                {timelineData.map((item, index) => (
-                  <div key={index} className="relative pb-5 last:pb-0">
-                    <div
-                      className={`absolute left-[-21px] top-1 w-4 h-4 rounded-full ring-4 flex items-center justify-center ${
-                        item.active
-                          ? "bg-medical-primary ring-medical-primary-light"
-                          : "bg-gray-300 ring-gray-100"
-                      }`}
-                    >
-                      {item.active && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                    </div>
-                    <div className="flex justify-between items-start mb-1">
-                      <div className="text-sm font-semibold text-medical-text-primary">
-                        {item.title}
-                      </div>
-                      <span className="text-xs text-medical-text-muted">{item.date}</span>
-                    </div>
-                    <div className="text-xs text-medical-text-muted mb-2">{item.source}</div>
-                    {item.status && (
+                {timelineData.length > 0 ? (
+                  timelineData.map((item, index) => (
+                    <div key={index} className="relative pb-5 last:pb-0">
                       <div
-                        className={`${item.statusColor} rounded-xl p-3 text-xs flex items-center gap-2`}
+                        className={`absolute left-[-21px] top-1 w-4 h-4 rounded-full ring-4 flex items-center justify-center ${
+                          item.active
+                            ? "bg-medical-primary ring-medical-primary-light"
+                            : "bg-gray-300 ring-gray-100"
+                        }`}
                       >
-                        <CheckCircle className="w-4 h-4" />
-                        {item.status}
+                        {item.active && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                       </div>
-                    )}
-                    {item.file && (
-                      <div className="bg-white/60 rounded-xl p-3 flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-medical-primary" />
-                        <span className="text-xs text-medical-text-secondary">{item.file}</span>
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="text-sm font-semibold text-medical-text-primary">
+                          {item.title}
+                        </div>
+                        <span className="text-xs text-medical-text-muted">{item.date}</span>
                       </div>
-                    )}
+                      <div className="text-xs text-medical-text-muted mb-2">{item.source}</div>
+                      {item.status && (
+                        <div
+                          className={`${item.statusColor} rounded-xl p-3 text-xs flex items-center gap-2`}
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          {item.status}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-medical-text-muted py-8 text-center">
+                    暂无医疗记录
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </motion.div>
@@ -425,26 +525,32 @@ export default function RecordsPage() {
                 </Link>
               </div>
               <div className="space-y-3">
-                {mockRecords.slice(0, 3).map((record) => (
-                  <Link
-                    key={record.id}
-                    href={`/summary?session_id=${record.id}`}
-                    className="block p-3 rounded-xl hover:bg-white/60 transition-colors group"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs px-2 py-0.5 rounded-md bg-medical-primary-light text-medical-primary">
-                        {record.type}
-                      </span>
-                    </div>
-                    <div className="text-sm font-medium text-medical-text-primary mb-1 line-clamp-1">
-                      {record.summary}
-                    </div>
-                    <div className="text-xs text-medical-text-muted flex items-center gap-1.5">
-                      <Calendar className="w-3 h-3" />
-                      {record.date}
-                    </div>
-                  </Link>
-                ))}
+                {recentRecords.length > 0 ? (
+                  recentRecords.slice(0, 3).map((record) => (
+                    <Link
+                      key={record.id}
+                      href={`/summary?session_id=${record.id}`}
+                      className="block p-3 rounded-xl hover:bg-white/60 transition-colors group"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs px-2 py-0.5 rounded-md bg-medical-primary-light text-medical-primary">
+                          {record.type}
+                        </span>
+                      </div>
+                      <div className="text-sm font-medium text-medical-text-primary mb-1 line-clamp-1">
+                        {record.summary}
+                      </div>
+                      <div className="text-xs text-medical-text-muted flex items-center gap-1.5">
+                        <Calendar className="w-3 h-3" />
+                        {record.date}
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="text-sm text-medical-text-muted text-center py-4">
+                    暂无就诊记录
+                  </div>
+                )}
               </div>
             </div>
 
@@ -529,51 +635,65 @@ export default function RecordsPage() {
           </div>
 
           <div className="space-y-3">
-            {mockRecords.map((record, index) => (
-              <motion.div
-                key={record.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 + index * 0.1 }}
-              >
-                <Link
-                  href={`/summary?session_id=${record.id}`}
-                  className="block glass-card rounded-2xl p-5 hover:shadow-medical-md hover:border-medical-primary/30 transition-all group"
+            {recentRecords.length > 0 ? (
+              recentRecords.map((record, index) => (
+                <motion.div
+                  key={record.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 + index * 0.1 }}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-medical-primary-light flex items-center justify-center">
-                        <FileText className="w-6 h-6 text-medical-primary" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3 mb-1">
-                          <span className="font-semibold text-medical-text-primary">
-                            {record.type}
-                          </span>
-                          <Badge variant={record.status === "completed" ? "success" : "warning"}>
-                            {record.status === "completed" ? "已完成" : "进行中"}
-                          </Badge>
-                          <span className="text-xs text-medical-text-muted">
-                            {record.department}
-                          </span>
+                  <Link
+                    href={`/summary?session_id=${record.id}`}
+                    className="block glass-card rounded-2xl p-5 hover:shadow-medical-md hover:border-medical-primary/30 transition-all group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-medical-primary-light flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-medical-primary" />
                         </div>
-                        <p className="text-sm text-medical-text-secondary">{record.summary}</p>
-                        <p className="text-xs text-medical-text-muted mt-1">
-                          医生：{record.doctor}
-                        </p>
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <span className="font-semibold text-medical-text-primary">
+                              {record.type}
+                            </span>
+                            <Badge variant={record.status === "completed" ? "success" : "warning"}>
+                              {record.status === "completed" ? "已完成" : "进行中"}
+                            </Badge>
+                            <span className="text-xs text-medical-text-muted">
+                              {record.department}
+                            </span>
+                          </div>
+                          <p className="text-sm text-medical-text-secondary">{record.summary}</p>
+                          <p className="text-xs text-medical-text-muted mt-1">
+                            医生：{record.doctor}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 text-xs text-medical-text-muted">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {record.date}
+                        </div>
+                        <ArrowRight className="w-5 h-5 text-medical-text-muted group-hover:text-medical-primary transition-colors" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 text-xs text-medical-text-muted">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {record.date}
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-medical-text-muted group-hover:text-medical-primary transition-colors" />
-                    </div>
-                  </div>
+                  </Link>
+                </motion.div>
+              ))
+            ) : (
+              <div className="glass-card rounded-2xl p-12 text-center">
+                <FileText className="w-12 h-12 text-medical-text-muted mx-auto mb-4" />
+                <p className="text-medical-text-secondary">暂无就诊记录</p>
+                <Link
+                  href="/consultation"
+                  className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 gradient-primary text-white rounded-xl text-sm font-medium shadow-medical-primary hover:shadow-glow transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  开始新问诊
                 </Link>
-              </motion.div>
-            ))}
+              </div>
+            )}
           </div>
         </motion.div>
       </div>

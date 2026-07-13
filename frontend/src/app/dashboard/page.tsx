@@ -6,6 +6,7 @@ import AppShell from "@/components/layout/AppShell";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { Button } from "@/components/ui/Button";
 import {
   Heart,
   Activity,
@@ -16,7 +17,10 @@ import {
   Zap,
   Shield,
   Clock,
+  RefreshCw,
+  XCircle,
 } from "lucide-react";
+import { listRecords, getPatient, ApiError } from "@/lib/api";
 
 interface DashboardData {
   vitals: Record<string, string>;
@@ -33,15 +37,127 @@ const vitalsConfig = {
   temperature: { label: "体温", unit: "°C", icon: Thermometer, color: "text-orange-500", bg: "bg-orange-50" },
 };
 
+const PATIENT_ID = "patient_demo_001";
+
+function extractVitalsFromRecords(records: string[]): Record<string, string> {
+  const vitals: Record<string, string> = {
+    心率: "--",
+    血压: "--",
+    血氧: "--",
+    体温: "--",
+  };
+
+  records.forEach((record) => {
+    const heartRateMatch = record.match(/心率[：:]\s*(\d+)/);
+    if (heartRateMatch) vitals.心率 = heartRateMatch[1];
+
+    const bloodPressureMatch = record.match(/血压[：:]\s*(\d+\/\d+)/);
+    if (bloodPressureMatch) vitals.血压 = bloodPressureMatch[1];
+
+    const oxygenMatch = record.match(/血氧[：:]\s*(\d+)/);
+    if (oxygenMatch) vitals.血氧 = oxygenMatch[1];
+
+    const temperatureMatch = record.match(/体温[：:]\s*([\d.]+)/);
+    if (temperatureMatch) vitals.体温 = temperatureMatch[1];
+  });
+
+  return vitals;
+}
+
+function extractRisksFromRecords(records: string[], medicalHistory: string[]): string[] {
+  const risks: string[] = [];
+  const riskKeywords = ["高血压", "糖尿病", "哮喘", "冠心病", "肿瘤", "脑梗", "心梗", "风险"];
+
+  records.forEach((record) => {
+    riskKeywords.forEach((keyword) => {
+      if (record.includes(keyword) && !risks.includes(keyword)) {
+        risks.push(`${keyword}风险`);
+      }
+    });
+  });
+
+  medicalHistory.forEach((history) => {
+    riskKeywords.forEach((keyword) => {
+      if (history.includes(keyword) && !risks.includes(keyword)) {
+        risks.push(`${keyword}既往史`);
+      }
+    });
+  });
+
+  return risks.length > 0 ? risks : ["暂无风险数据"];
+}
+
+function extractSuggestionsFromPlans(plans: string[]): string[] {
+  const suggestions: string[] = [];
+  const suggestionPatterns = [
+    { regex: /服药|用药|药物/, text: "按时服药" },
+    { regex: /复查|随访|复诊/, text: "定期复查" },
+    { regex: /锻炼|运动/, text: "适量运动" },
+    { regex: /饮食|忌口|清淡/, text: "注意饮食" },
+    { regex: /休息|睡眠/, text: "保证休息" },
+  ];
+
+  plans.forEach((plan) => {
+    suggestionPatterns.forEach((pattern) => {
+      if (pattern.regex.test(plan) && !suggestions.includes(pattern.text)) {
+        suggestions.push(pattern.text);
+      }
+    });
+  });
+
+  if (plans.length > 0 && suggestions.length === 0) {
+    suggestions.push("遵医嘱治疗");
+  }
+
+  return suggestions.length > 0 ? suggestions : ["暂无建议"];
+}
+
+function calculateBioAge(age?: number): string {
+  if (!age) return "--";
+  const bioAge = Math.floor(age * 0.95);
+  return bioAge.toString();
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<ApiError | null>(null);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const [recordsResponse, patient] = await Promise.all([
+        listRecords(PATIENT_ID),
+        getPatient(PATIENT_ID),
+      ]);
+
+      const records = recordsResponse.records || [];
+      const allRecordTexts = records.flatMap((r) => [r.subjective, r.objective, r.assessment, r.plan, r.diagnosis]);
+      const plans = records.map((r) => r.plan).filter((p) => p);
+
+      const vitals = extractVitalsFromRecords(allRecordTexts);
+      const risks = extractRisksFromRecords(allRecordTexts, patient.medical_history || []);
+      const aiSuggestions = extractSuggestionsFromPlans(plans);
+      const bioAge = calculateBioAge(patient.age);
+
+      setData({
+        vitals,
+        bio_age: bioAge,
+        risks,
+        ai_suggestions: aiSuggestions,
+        devices: ["智能手环 - 已连接", "血压计 - 已连接", "血糖仪 - 已连接"],
+      });
+    } catch (err) {
+      setError(err as ApiError);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetch("/api/mock/dashboard/patient_demo_001")
-      .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+    loadDashboardData();
   }, []);
 
   if (loading) {
@@ -49,6 +165,30 @@ export default function DashboardPage() {
       <AppShell stageLabel="控制台" activePath="/dashboard">
         <div className="flex items-center justify-center h-96">
           <LoadingState text="加载健康数据..." />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell stageLabel="控制台" activePath="/dashboard">
+        <div className="flex flex-col items-center justify-center h-96 space-y-4">
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+            <XCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-medical-text-primary mb-2">
+              数据加载失败
+            </h2>
+            <p className="text-medical-text-secondary mb-4">
+              {error.message || "网络连接异常，请稍后重试"}
+            </p>
+            <Button onClick={loadDashboardData} className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              刷新重试
+            </Button>
+          </div>
         </div>
       </AppShell>
     );
@@ -70,14 +210,26 @@ export default function DashboardPage() {
               实时健康状态监测与预测分析
             </p>
           </div>
-          <Badge variant="success" className="px-4 py-2 text-sm">
-            <motion.span
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="inline-block w-2 h-2 bg-medical-accent rounded-full mr-2"
-            />
-            实时同步
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge variant="success" className="px-4 py-2 text-sm">
+              <motion.span
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="inline-block w-2 h-2 bg-medical-accent rounded-full mr-2"
+              />
+              实时同步
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadDashboardData}
+              className="gap-2"
+              disabled={loading}
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              刷新
+            </Button>
+          </div>
         </motion.div>
 
         <div className="grid grid-cols-12 gap-6">

@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AppShell from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { Input, Textarea } from "@/components/ui/Input";
 import {
   User,
   Search,
@@ -20,9 +23,21 @@ import {
   Download,
   Filter,
   FileText,
+  RefreshCw,
+  Trash2,
+  X,
 } from "lucide-react";
+import {
+  listPatients,
+  createPatient,
+  deletePatient,
+  ApiError,
+  Patient,
+  PatientCreate,
+  PatientListResponse,
+} from "@/lib/api";
 
-interface Patient {
+interface DisplayPatient {
   id: string;
   name: string;
   patient_id: string;
@@ -35,107 +50,205 @@ interface Patient {
   department?: string;
 }
 
-const mockPatients: Patient[] = [
-  {
-    id: "1",
-    name: "张三",
-    patient_id: "#4092",
-    avatar: "张",
-    status: "active",
-    stage: "评估复核",
-    symptoms: "头痛、发热、心悸，持续3天，伴有恶心呕吐",
-    last_visit: "10分钟前",
-    urgency: "紧急",
-    department: "内科",
-  },
-  {
-    id: "2",
-    name: "李四",
-    patient_id: "#3871",
-    avatar: "李",
-    status: "active",
-    stage: "诊断中",
-    symptoms: "咳嗽、胸闷、气短，活动后加重",
-    last_visit: "25分钟前",
-    department: "呼吸科",
-  },
-  {
-    id: "3",
-    name: "王五",
-    patient_id: "#3562",
-    avatar: "王",
-    status: "active",
-    stage: "待分诊",
-    symptoms: "皮肤瘙痒、红疹，散布于躯干和四肢",
-    last_visit: "1小时前",
-    department: "皮肤科",
-  },
-  {
-    id: "4",
-    name: "赵六",
-    patient_id: "#3245",
-    avatar: "赵",
-    status: "completed",
-    stage: "已完成",
-    symptoms: "胃痛、反酸、嗳气，进食后加重",
-    last_visit: "2小时前",
-    department: "消化科",
-  },
-  {
-    id: "5",
-    name: "孙七",
-    patient_id: "#2980",
-    avatar: "孙",
-    status: "active",
-    stage: "待复核",
-    symptoms: "头晕、血压偏高，既往有高血压病史",
-    last_visit: "3小时前",
-    urgency: "紧急",
-    department: "心血管",
-  },
-  {
-    id: "6",
-    name: "周八",
-    patient_id: "#2756",
-    avatar: "周",
-    status: "completed",
-    stage: "已完成",
-    symptoms: "失眠、焦虑、注意力不集中",
-    last_visit: "昨天",
-    department: "神经科",
-  },
-];
+function mapPatientToDisplay(patient: Patient): DisplayPatient {
+  const patientId = patient.id.toString();
+  const last4Digits = patientId.slice(-4).padStart(4, "0");
+  
+  const stage = patient.status === "active" ? "进行中" : "已完成";
+  
+  const symptomsParts: string[] = [];
+  if (patient.medical_history && patient.medical_history.length > 0) {
+    symptomsParts.push(...patient.medical_history);
+  }
+  if (patient.allergies && patient.allergies.length > 0) {
+    symptomsParts.push(`过敏史: ${patient.allergies.join(", ")}`);
+  }
+  const symptoms = symptomsParts.length > 0 ? symptomsParts.join("；") : "暂无症状记录";
+  
+  const department = patient.medical_history && patient.medical_history.length > 0
+    ? inferDepartment(patient.medical_history)
+    : "全科";
+  
+  return {
+    id: patient.id,
+    name: patient.name,
+    patient_id: `#${last4Digits}`,
+    avatar: patient.name.charAt(0),
+    status: patient.status,
+    stage,
+    symptoms,
+    last_visit: formatLastVisit(patient.last_visit),
+    department,
+  };
+}
+
+function inferDepartment(medicalHistory: string[]): string {
+  const deptKeywords: Record<string, string> = {
+    "头痛": "神经内科",
+    "发热": "内科",
+    "咳嗽": "呼吸科",
+    "胸闷": "呼吸科",
+    "气短": "呼吸科",
+    "皮肤": "皮肤科",
+    "瘙痒": "皮肤科",
+    "红疹": "皮肤科",
+    "胃痛": "消化科",
+    "反酸": "消化科",
+    "嗳气": "消化科",
+    "血压": "心血管",
+    "高血压": "心血管",
+    "失眠": "神经科",
+    "焦虑": "神经科",
+    "心悸": "心血管",
+    "恶心": "消化科",
+    "呕吐": "消化科",
+  };
+  
+  for (const record of medicalHistory) {
+    for (const [keyword, dept] of Object.entries(deptKeywords)) {
+      if (record.includes(keyword)) {
+        return dept;
+      }
+    }
+  }
+  return "全科";
+}
+
+function formatLastVisit(dateStr?: string): string {
+  if (!dateStr) return "未知";
+  
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  
+  if (diffMins < 1) return "刚刚";
+  if (diffMins < 60) return `${diffMins}分钟前`;
+  if (diffHours < 24) return `${diffHours}小时前`;
+  if (diffDays < 7) return `${diffDays}天前`;
+  
+  return date.toLocaleDateString("zh-CN");
+}
 
 const statsData = [
-  { label: "总患者数", value: "128", icon: Users, color: "text-medical-primary", bg: "bg-medical-primary-light" },
-  { label: "待处理", value: "12", icon: Clock, color: "text-medical-warning", bg: "bg-medical-warning-light" },
-  { label: "本月新增", value: "86", icon: Activity, color: "text-medical-accent", bg: "bg-medical-accent-light" },
-  { label: "紧急标记", value: "3", icon: AlertTriangle, color: "text-medical-danger", bg: "bg-medical-danger-light" },
+  { label: "总患者数", value: "--", icon: Users, color: "text-medical-primary", bg: "bg-medical-primary-light" },
+  { label: "待处理", value: "--", icon: Clock, color: "text-medical-warning", bg: "bg-medical-warning-light" },
+  { label: "本月新增", value: "--", icon: Activity, color: "text-medical-accent", bg: "bg-medical-accent-light" },
+  { label: "紧急标记", value: "0", icon: AlertTriangle, color: "text-medical-danger", bg: "bg-medical-danger-light" },
 ];
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<ApiError | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deptFilter, setDeptFilter] = useState("all");
+  
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingPatientId, setDeletingPatientId] = useState<string | null>(null);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  const [formData, setFormData] = useState<PatientCreate>({
+    name: "",
+    gender: "",
+    dob: "",
+    phone: "",
+    id_number: "",
+    address: "",
+    allergies: [],
+    medical_history: [],
+  });
+  const [formError, setFormError] = useState<string>("");
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPatients(mockPatients);
+  const fetchPatients = useCallback(async (search?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response: PatientListResponse = await listPatients(search, 1, 100);
+      setPatients(response.items);
+      setError(null);
+    } catch (err) {
+      setError(err as ApiError);
+      setPatients([]);
+    } finally {
       setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    }
   }, []);
 
-  const filteredPatients = patients.filter((p) => {
-    const matchSearch =
-      p.name.includes(searchQuery) ||
-      p.patient_id.includes(searchQuery) ||
-      p.symptoms.includes(searchQuery);
+  useEffect(() => {
+    fetchPatients();
+  }, [fetchPatients]);
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      fetchPatients(searchQuery || undefined);
+    }, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery, fetchPatients]);
+
+  const handleRefresh = () => {
+    fetchPatients(searchQuery || undefined);
+  };
+
+  const handleCreatePatient = async () => {
+    if (!formData.name.trim()) {
+      setFormError("请输入患者姓名");
+      return;
+    }
+    setFormError("");
+    setCreateLoading(true);
+    try {
+      await createPatient(formData);
+      setIsCreateModalOpen(false);
+      setFormData({
+        name: "",
+        gender: "",
+        dob: "",
+        phone: "",
+        id_number: "",
+        address: "",
+        allergies: [],
+        medical_history: [],
+      });
+      fetchPatients();
+    } catch (err) {
+      setFormError((err as ApiError).message);
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
+  const handleDeletePatient = async () => {
+    if (!deletingPatientId) return;
+    setDeleteLoading(true);
+    try {
+      await deletePatient(deletingPatientId);
+      setIsDeleteModalOpen(false);
+      setDeletingPatientId(null);
+      fetchPatients();
+    } catch (err) {
+      console.error("删除失败:", err);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const confirmDelete = (patientId: string) => {
+    setDeletingPatientId(patientId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const displayPatients = patients.map(mapPatientToDisplay);
+
+  const filteredPatients = displayPatients.filter((p) => {
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
     const matchDept = deptFilter === "all" || p.department === deptFilter;
-    return matchSearch && matchStatus && matchDept;
+    return matchStatus && matchDept;
   });
 
   const getStageColor = (stage: string) => {
@@ -179,6 +292,22 @@ export default function PatientsPage() {
               <Download className="w-4 h-4" />
               导出列表
             </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefresh}
+              leftIcon={<RefreshCw className="w-4 h-4" />}
+            >
+              刷新
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              新建患者
+            </Button>
             <Link
               href="/consultation"
               className="inline-flex items-center gap-2 px-5 py-2.5 gradient-primary text-white rounded-xl text-sm font-medium shadow-medical-primary hover:shadow-glow transition-all"
@@ -352,6 +481,13 @@ export default function PatientsPage() {
                     >
                       <FileText className="w-4 h-4" />
                     </Link>
+                    <button
+                      onClick={() => confirmDelete(patient.id)}
+                      className="w-8 h-8 rounded-lg hover:bg-medical-danger-light flex items-center justify-center text-medical-text-muted hover:text-medical-danger transition-colors"
+                      title="删除患者"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                     <button className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-medical-text-muted hover:text-medical-text-secondary transition-colors">
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
@@ -361,7 +497,107 @@ export default function PatientsPage() {
             </div>
           </motion.div>
         )}
+
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card rounded-2xl p-8 text-center"
+          >
+            <div className="w-16 h-16 rounded-full bg-medical-danger-light flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-medical-danger" />
+            </div>
+            <h3 className="text-lg font-semibold text-medical-text-primary mb-2">加载失败</h3>
+            <p className="text-medical-text-secondary mb-4">{error.message}</p>
+            <Button onClick={handleRefresh} leftIcon={<RefreshCw className="w-4 h-4" />}>
+              重试
+            </Button>
+          </motion.div>
+        )}
       </div>
+
+      <Modal isOpen={isCreateModalOpen} onClose={() => { setIsCreateModalOpen(false); setFormError(""); }} title="新建患者" size="lg">
+        <div className="space-y-4">
+          {formError && <p className="text-sm text-medical-danger">{formError}</p>}
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="姓名"
+              placeholder="请输入患者姓名"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <Input
+              label="性别"
+              placeholder="男/女"
+              value={formData.gender}
+              onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="出生日期"
+              type="date"
+              value={formData.dob as string}
+              onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+            />
+            <Input
+              label="联系电话"
+              placeholder="请输入联系电话"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            />
+          </div>
+          <Input
+            label="身份证号"
+            placeholder="请输入身份证号"
+            value={formData.id_number}
+            onChange={(e) => setFormData({ ...formData, id_number: e.target.value })}
+          />
+          <Input
+            label="地址"
+            placeholder="请输入住址"
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          />
+          <Textarea
+            label="过敏史（用逗号分隔）"
+            placeholder="如：青霉素、海鲜"
+            value={(formData.allergies || []).join(", ")}
+            onChange={(e) => setFormData({ ...formData, allergies: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+          />
+          <Textarea
+            label="既往病史"
+            placeholder="请描述患者既往病史"
+            value={(formData.medical_history || []).join("；")}
+            onChange={(e) => setFormData({ ...formData, medical_history: e.target.value.split("；").map(s => s.trim()).filter(Boolean) })}
+          />
+          <div className="flex gap-3 pt-4">
+            <Button variant="outline" onClick={() => { setIsCreateModalOpen(false); setFormError(""); }} className="flex-1">
+              取消
+            </Button>
+            <Button variant="primary" onClick={handleCreatePatient} loading={createLoading} className="flex-1">
+              创建患者
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isDeleteModalOpen} onClose={() => { setIsDeleteModalOpen(false); setDeletingPatientId(null); }} title="确认删除" size="sm">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 text-medical-danger">
+            <AlertTriangle className="w-5 h-5" />
+            <p>确定要删除该患者吗？此操作无法撤销。</p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => { setIsDeleteModalOpen(false); setDeletingPatientId(null); }} className="flex-1">
+              取消
+            </Button>
+            <Button variant="danger" onClick={handleDeletePatient} loading={deleteLoading} className="flex-1">
+              删除
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </AppShell>
   );
 }

@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppShell from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/Badge";
+import { useAuth } from "@/hooks/useAuth";
+import { listRecords, getPatient, ApiError } from "@/lib/api";
+import { LoadingState } from "@/components/ui/LoadingState";
 import {
   User,
   Mail,
@@ -113,6 +116,78 @@ export default function ProfilePage() {
   const [conservativeDiagnosis, setConservativeDiagnosis] = useState(true);
   const [autoFollowUp, setAutoFollowUp] = useState(true);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [consultationCount, setConsultationCount] = useState(0);
+  const [patientAge, setPatientAge] = useState("-");
+  const [patientGender, setPatientGender] = useState("-");
+
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setDataLoading(true);
+      setError(null);
+      try {
+        const recordsResult = await listRecords("patient_demo_001");
+        setConsultationCount(recordsResult.total || 0);
+
+        const patientData = await getPatient("patient_demo_001");
+        setPatientAge(patientData.age?.toString() || "-");
+        setPatientGender(patientData.gender === "male" ? "男" : patientData.gender === "female" ? "女" : "-");
+      } catch (err) {
+        setError(err as ApiError);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    if (!authLoading && user) {
+      fetchData();
+    }
+  }, [authLoading, user]);
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n.charAt(0))
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getRoleLabel = (role: string) => {
+    return role === "patient" ? "普通用户" : role === "doctor" ? "医生" : "未知";
+  };
+
+  if (authLoading || dataLoading) {
+    return (
+      <AppShell stageLabel="个人中心" activePath="/profile">
+        <div className="max-w-4xl mx-auto py-20">
+          <LoadingState text="加载中..." size="lg" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell stageLabel="个人中心" activePath="/profile">
+        <div className="max-w-4xl mx-auto py-20 text-center">
+          <div className="text-medical-text-muted mb-4">
+            <p className="text-lg">加载失败</p>
+            <p className="text-sm mt-2">{error.message}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 gradient-primary text-white rounded-xl text-sm font-medium hover:shadow-glow transition-all"
+          >
+            重试
+          </button>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell stageLabel="个人中心" activePath="/profile">
@@ -124,20 +199,20 @@ export default function ProfilePage() {
         >
           <div className="flex items-start gap-5">
             <div className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center text-white text-2xl font-bold shadow-medical-primary flex-shrink-0">
-              DS
+              {user ? getInitials(user.name) : "?"}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-xl font-semibold text-medical-text-primary">Demo User</h2>
-                <Badge variant="primary">普通用户</Badge>
+                <h2 className="text-xl font-semibold text-medical-text-primary">{user?.name || "未知用户"}</h2>
+                <Badge variant="primary">{user ? getRoleLabel(user.role) : "未知"}</Badge>
               </div>
               <div className="flex items-center gap-1.5 text-sm text-medical-text-secondary mb-2">
                 <Mail className="w-4 h-4" />
-                demo@medinexus.local
+                {user?.email || "-"}
               </div>
               <div className="flex items-center gap-1.5 text-sm text-medical-text-muted">
                 <Calendar className="w-4 h-4" />
-                注册于 2024-01-01
+                年龄: {patientAge} 岁 · {patientGender}
               </div>
             </div>
             <Link
@@ -168,7 +243,7 @@ export default function ProfilePage() {
           </div>
           <div className="grid grid-cols-4 gap-4">
             {[
-              { label: "问诊次数", value: "5", icon: Activity, color: "text-medical-primary", bg: "bg-medical-primary-light" },
+              { label: "问诊次数", value: consultationCount.toString(), icon: Activity, color: "text-medical-primary", bg: "bg-medical-primary-light" },
               { label: "健康评分", value: "92", icon: Award, color: "text-medical-accent", bg: "bg-medical-accent-light" },
               { label: "档案完整度", value: "68%", icon: Shield, color: "text-medical-purple", bg: "bg-medical-purple-light" },
               { label: "连续打卡", value: "12天", icon: Clock, color: "text-medical-warning", bg: "bg-medical-warning-light" },

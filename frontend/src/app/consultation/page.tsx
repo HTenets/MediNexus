@@ -4,13 +4,9 @@ import { useState, useEffect } from "react";
 import AppShell from "@/components/layout/AppShell";
 import ChatContainer from "@/components/chat/ChatContainer";
 import { createConsultationSocket, ConsultationSocket } from "@/lib/websocket";
-import { User, CheckCircle, AlertTriangle, Stethoscope } from "lucide-react";
-
-function generateId(): string {
-  return "xxxx-xxxx-xxxx".replace(/x/g, () =>
-    Math.floor(Math.random() * 16).toString(16)
-  );
-}
+import { startConsultation, ApiError, ConsultationStartResponse } from "@/lib/api";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { CheckCircle, AlertTriangle, Stethoscope } from "lucide-react";
 
 const confirmedSymptoms = [
   "头痛持续 2 天，双侧胀痛",
@@ -29,16 +25,78 @@ const quickSymptoms = [
 ];
 
 export default function ConsultationPage() {
-  const [sessionId] = useState(() => generateId());
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [socket, setSocket] = useState<ConsultationSocket | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    startConsultation()
+      .then((response: ConsultationStartResponse) => {
+        setSessionId(response.session_id);
+        setError(null);
+      })
+      .catch((err: ApiError) => {
+        setError(err.message || "创建会话失败");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!sessionId) return;
+
     const s = createConsultationSocket(sessionId);
     setSocket(s);
     return () => {
       s.disconnect();
     };
   }, [sessionId]);
+
+  const handleRetry = () => {
+    setLoading(true);
+    setError(null);
+    startConsultation()
+      .then((response: ConsultationStartResponse) => {
+        setSessionId(response.session_id);
+      })
+      .catch((err: ApiError) => {
+        setError(err.message || "创建会话失败");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  if (loading) {
+    return (
+      <AppShell stageLabel="导诊护士 Agent 阶段 1/4">
+        <div className="flex items-center justify-center h-[60vh]">
+          <LoadingState text="创建会话中..." />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell stageLabel="导诊护士 Agent 阶段 1/4">
+        <div className="flex items-center justify-center h-[60vh]">
+          <div className="text-center">
+            <AlertTriangle className="w-12 h-12 text-medical-warning mx-auto mb-4" />
+            <p className="text-lg text-medical-text-primary mb-4">{error}</p>
+            <button
+              onClick={handleRetry}
+              className="px-6 py-2.5 gradient-primary text-white rounded-xl text-sm font-medium hover:shadow-glow transition-all"
+            >
+              重试
+            </button>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell stageLabel="导诊护士 Agent 阶段 1/4">
@@ -58,7 +116,7 @@ export default function ConsultationPage() {
         <div className="grid grid-cols-12 gap-5" style={{ minHeight: "calc(100vh - 280px)" }}>
           <div className="col-span-8">
             <div className="bg-white rounded-2xl shadow-medical-sm border border-medical-border flex flex-col h-full">
-              <ChatContainer sessionId={sessionId} socket={socket} quickSymptoms={quickSymptoms} />
+              <ChatContainer sessionId={sessionId!} socket={socket} quickSymptoms={quickSymptoms} />
             </div>
           </div>
 

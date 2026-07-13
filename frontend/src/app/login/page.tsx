@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   User,
@@ -12,16 +13,36 @@ import {
   Shield,
   Database,
   Code,
-  ArrowLeft,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { login, loading } = useAuth();
   const [role, setRole] = useState<"patient" | "doctor">("patient");
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError("请输入邮箱和密码");
+      return;
+    }
+    setError("");
+    try {
+      await login(email, password, role);
+      router.push("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "登录失败");
+    }
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -192,6 +213,8 @@ export default function LoginPage() {
                 label="邮箱 / 手机号"
                 placeholder="请输入邮箱或手机号"
                 leftIcon={<User className="w-4 h-4" />}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
 
               <div className="space-y-2">
@@ -211,6 +234,8 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="请输入密码"
                     className="w-full rounded-xl border border-medical-border px-11 py-3 text-sm outline-none transition-all input-focus"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                   />
                   <button
                     type="button"
@@ -226,14 +251,35 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-sm text-medical-danger bg-medical-danger-light/30 px-4 py-2 rounded-lg"
+                >
+                  {error}
+                </motion.div>
+              )}
+
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={!loading ? { scale: 1.02 } : {}}
+                whileTap={!loading ? { scale: 0.98 } : {}}
                 type="button"
-                className="w-full gradient-primary text-white rounded-xl py-3.5 text-sm font-medium shadow-medical-primary hover:shadow-glow transition-all flex items-center justify-center gap-2"
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full gradient-primary text-white rounded-xl py-3.5 text-sm font-medium shadow-medical-primary hover:shadow-glow transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {activeTab === "login" ? "登录" : "注册"}
-                <ChevronRight className="w-4 h-4" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    登录中...
+                  </>
+                ) : (
+                  <>
+                    {activeTab === "login" ? "登录" : "注册"}
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
               </motion.button>
             </form>
 

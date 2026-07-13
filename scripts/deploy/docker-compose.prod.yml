@@ -1,0 +1,153 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-medinexus}
+      POSTGRES_USER: ${POSTGRES_USER:-medinexus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medinexus_prod}
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medinexus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - /opt/medinexus/data/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - medinexus-network
+    mem_limit: 2G
+    mem_reservation: 512M
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - /opt/medinexus/data/redis:/data
+    restart: unless-stopped
+    networks:
+      - medinexus-network
+    mem_limit: 512M
+    mem_reservation: 128M
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - /opt/medinexus/data/qdrant:/qdrant/storage
+    restart: unless-stopped
+    networks:
+      - medinexus-network
+    mem_limit: 4G
+    mem_reservation: 1G
+
+  backend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.backend
+    environment:
+      MEDINEXUS_DATABASE_URL: ${MEDINEXUS_DATABASE_URL:-postgresql+asyncpg://medinexus:medinexus_prod@postgres:5432/medinexus}
+      MEDINEXUS_REDIS_URL: ${MEDINEXUS_REDIS_URL:-redis://redis:6379/0}
+      MEDINEXUS_QDRANT_URL: ${MEDINEXUS_QDRANT_URL:-http://qdrant:6333}
+      MEDINEXUS_JWT_SECRET: ${MEDINEXUS_JWT_SECRET}
+      MEDINEXUS_DEMO_MODE: ${MEDINEXUS_DEMO_MODE:-false}
+      MEDINEXUS_ALLOWED_ORIGINS: ${MEDINEXUS_ALLOWED_ORIGINS:-http://47.80.10.180}
+      MEDINEXUS_LLM_PROVIDER: ${MEDINEXUS_LLM_PROVIDER:-ollama}
+      MEDINEXUS_OLLAMA_BASE_URL: ${MEDINEXUS_OLLAMA_BASE_URL:-http://localhost:11434}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - medinexus-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 2G
+    mem_reservation: 512M
+
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.worker
+    environment:
+      MEDINEXUS_DATABASE_URL: ${MEDINEXUS_DATABASE_URL:-postgresql+asyncpg://medinexus:medinexus_prod@postgres:5432/medinexus}
+      MEDINEXUS_REDIS_URL: ${MEDINEXUS_REDIS_URL:-redis://redis:6379/0}
+      MEDINEXUS_QDRANT_URL: ${MEDINEXUS_QDRANT_URL:-http://qdrant:6333}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - medinexus-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 1G
+    mem_reservation: 256M
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://47.80.10.180}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - medinexus-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512M
+    mem_reservation: 128M
+
+  nginx:
+    build:
+      context: infrastructure/nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - medinexus-network
+    volumes:
+      - /opt/medinexus/logs/nginx:/var/log/nginx
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  medinexus-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
