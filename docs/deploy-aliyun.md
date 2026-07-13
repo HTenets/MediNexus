@@ -120,31 +120,27 @@ ufw --force enable
 
 ## 5. 部署项目
 
-### 5.1 方式一：使用部署脚本（推荐）
+### 5.1 方式一：本地打包上传部署（推荐）
+
+此方式适用于从本地开发环境部署到服务器。
+
+#### 步骤1：打包代码
 
 ```bash
 # 在本地项目目录执行
 cd e:\Program\MediNexus
-
-# 上传代码并部署
-bash scripts/deploy/deploy.sh -f
-```
-
-### 5.2 方式二：手动部署
-
-#### 步骤1：打包并上传代码
-
-```bash
-# 在本地执行
-cd e:\Program\MediNexus
 tar --exclude='node_modules' --exclude='.git' --exclude='*.pyc' \
     --exclude='__pycache__' --exclude='*.log' --exclude='.env' \
     -czf medinexus-deploy.tar.gz .
+```
 
+#### 步骤2：上传代码到服务器
+
+```bash
 scp medinexus-deploy.tar.gz root@47.80.10.180:/opt/medinexus/
 ```
 
-#### 步骤2：解压代码
+#### 步骤3：解压代码
 
 ```bash
 # 在服务器上执行
@@ -154,11 +150,12 @@ rm -rf deploy && mkdir -p deploy
 tar -xzf medinexus-deploy.tar.gz -C deploy --strip-components=1
 ```
 
-#### 步骤3：配置环境变量
+#### 步骤4：配置环境变量
 
 ```bash
 cp /opt/medinexus/deploy/scripts/deploy/.env.production /opt/medinexus/.env
 cp /opt/medinexus/deploy/scripts/deploy/docker-compose.prod.yml /opt/medinexus/docker-compose.yml
+cp /opt/medinexus/deploy/scripts/deploy/nginx.conf /opt/medinexus/deploy/infrastructure/nginx/nginx.conf
 ```
 
 **编辑环境变量文件**：
@@ -177,19 +174,191 @@ POSTGRES_PASSWORD=your_secure_postgres_password_here
 MEDINEXUS_JWT_SECRET=your_very_secure_jwt_secret_here_must_be_long_and_random
 
 # 允许的来源
-MEDINEXUS_ALLOWED_ORIGINS=http://47.80.10.180,https://47.80.10.180
+MEDINEXUS_ALLOWED_ORIGINS=http://47.80.10.180
 
 # 前端API地址
 NEXT_PUBLIC_API_URL=http://47.80.10.180
 ```
 
-#### 步骤4：构建并启动服务
+**生成随机密码的方法**：
+
+如果你不知道如何设置密码，可以使用以下命令自动生成随机密码：
+
+```bash
+# 生成数据库密码（16位随机字符串）
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
+
+# 生成JWT密钥（32位随机字符串）
+JWT_SECRET=$(openssl rand -hex 32)
+echo "MEDINEXUS_JWT_SECRET=$JWT_SECRET"
+```
+
+**一键生成并写入.env文件**（推荐）：
+
+```bash
+# 在服务器上执行，自动生成所有密码并写入.env文件
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+JWT_SECRET=$(openssl rand -hex 32)
+
+cat > /opt/medinexus/.env <<EOF
+POSTGRES_DB=medinexus
+POSTGRES_USER=medinexus
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+MEDINEXUS_DATABASE_URL=postgresql+asyncpg://medinexus:$POSTGRES_PASSWORD@postgres:5432/medinexus
+MEDINEXUS_REDIS_URL=redis://redis:6379/0
+MEDINEXUS_QDRANT_URL=http://qdrant:6333
+MEDINEXUS_JWT_SECRET=$JWT_SECRET
+MEDINEXUS_DEMO_MODE=false
+MEDINEXUS_ALLOWED_ORIGINS=http://47.80.10.180
+MEDINEXUS_LLM_PROVIDER=ollama
+MEDINEXUS_OLLAMA_BASE_URL=http://localhost:11434
+NEXT_PUBLIC_API_URL=http://47.80.10.180
+EOF
+
+echo "✅ .env 文件已生成！"
+```
+
+> **注意**：
+> - `POSTGRES_PASSWORD` 和 `MEDINEXUS_DATABASE_URL` 中的密码必须一致
+> - JWT密钥建议至少32个字符，越长越安全
+> - 请妥善保存这些密码，丢失后无法恢复
+
+#### 步骤5：构建并启动服务
 
 ```bash
 cd /opt/medinexus/deploy
 docker-compose -f /opt/medinexus/docker-compose.yml build --no-cache
 docker-compose -f /opt/medinexus/docker-compose.yml up -d
 ```
+
+### 5.2 方式二：服务器直接克隆项目部署
+
+此方式适用于直接在服务器上克隆仓库进行部署。
+
+#### 步骤1：克隆项目
+
+```bash
+# 在服务器上执行
+cd /opt/medinexus
+git clone <your-repository-url> deploy
+cd deploy
+```
+
+> **注意**：将 `<your-repository-url>` 替换为你的实际仓库地址。
+
+#### 步骤2：配置环境变量
+
+```bash
+cp scripts/deploy/.env.production /opt/medinexus/.env
+cp scripts/deploy/docker-compose.prod.yml /opt/medinexus/docker-compose.yml
+cp scripts/deploy/nginx.conf infrastructure/nginx/nginx.conf
+```
+
+**编辑环境变量文件**：
+
+```bash
+vim /opt/medinexus/.env
+```
+
+修改以下关键配置：
+
+```env
+# 数据库密码（必须修改）
+POSTGRES_PASSWORD=your_secure_postgres_password_here
+
+# JWT密钥（必须修改）
+MEDINEXUS_JWT_SECRET=your_very_secure_jwt_secret_here_must_be_long_and_random
+
+# 允许的来源
+MEDINEXUS_ALLOWED_ORIGINS=http://47.80.10.180
+
+# 前端API地址
+NEXT_PUBLIC_API_URL=http://47.80.10.180
+```
+
+**生成随机密码的方法**：
+
+如果你不知道如何设置密码，可以使用以下命令自动生成随机密码：
+
+```bash
+# 生成数据库密码（16位随机字符串）
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
+
+# 生成JWT密钥（32位随机字符串）
+JWT_SECRET=$(openssl rand -hex 32)
+echo "MEDINEXUS_JWT_SECRET=$JWT_SECRET"
+```
+
+**一键生成并写入.env文件**（推荐）：
+
+```bash
+# 在服务器上执行，自动生成所有密码并写入.env文件
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+JWT_SECRET=$(openssl rand -hex 32)
+
+cat > /opt/medinexus/.env <<EOF
+POSTGRES_DB=medinexus
+POSTGRES_USER=medinexus
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+MEDINEXUS_DATABASE_URL=postgresql+asyncpg://medinexus:$POSTGRES_PASSWORD@postgres:5432/medinexus
+MEDINEXUS_REDIS_URL=redis://redis:6379/0
+MEDINEXUS_QDRANT_URL=http://qdrant:6333
+MEDINEXUS_JWT_SECRET=$JWT_SECRET
+MEDINEXUS_DEMO_MODE=false
+MEDINEXUS_ALLOWED_ORIGINS=http://47.80.10.180
+MEDINEXUS_LLM_PROVIDER=ollama
+MEDINEXUS_OLLAMA_BASE_URL=http://localhost:11434
+NEXT_PUBLIC_API_URL=http://47.80.10.180
+EOF
+
+echo "✅ .env 文件已生成！"
+```
+
+> **注意**：
+> - `POSTGRES_PASSWORD` 和 `MEDINEXUS_DATABASE_URL` 中的密码必须一致
+> - JWT密钥建议至少32个字符，越长越安全
+> - 请妥善保存这些密码，丢失后无法恢复
+
+#### 步骤3：创建数据目录
+
+```bash
+mkdir -p /opt/medinexus/{logs,data/postgres,data/redis,data/qdrant}
+chown -R $(whoami):$(whoami) /opt/medinexus
+```
+
+#### 步骤4：构建并启动服务
+
+```bash
+cd /opt/medinexus/deploy
+docker-compose -f /opt/medinexus/deploy/docker-compose.yml build --no-cache
+docker-compose -f /opt/medinexus/deploy/docker-compose.yml up -d 
+```
+
+### 5.3 方式三：使用一键部署脚本
+
+```bash
+# 在本地项目目录执行
+cd e:\Program\MediNexus
+
+# 上传代码并部署
+bash scripts/deploy/deploy.sh -f
+```
+
+**脚本参数说明**：
+
+| 参数 | 说明 |
+|------|------|
+| `-h, --help` | 显示帮助信息 |
+| `-u, --upload` | 仅上传代码 |
+| `-b, --build` | 仅构建镜像 |
+| `-s, --start` | 仅启动服务 |
+| `-d, --down` | 停止服务 |
+| `-r, --restart` | 重启服务 |
+| `-l, --logs` | 查看服务日志 |
+| `-f, --full` | 完整部署流程 |
+| `-c, --clean` | 清理旧容器和镜像 |
 
 ## 6. SSL证书配置（可选）
 
@@ -349,18 +518,27 @@ find $BACKUP_DIR -type f -mtime +7 -delete
 
 ### 10.1 Docker资源限制
 
-在 `docker-compose.yml` 中配置：
+在 `docker-compose.yml` 中配置（适用于独立Docker Compose模式）：
 
 ```yaml
-deploy:
-  resources:
-    limits:
-      memory: 2G
-      cpus: '1.0'
-    reservations:
-      memory: 512M
-      cpus: '0.5'
+mem_limit: 2G
+mem_reservation: 512M
+cpus: '1.0'
 ```
+
+**各服务默认资源限制**：
+
+| 服务 | 内存限制 | 内存预留 | CPU限制 |
+|------|---------|---------|--------|
+| postgres | 2G | 512M | - |
+| redis | 512M | 128M | - |
+| qdrant | 4G | 1G | - |
+| backend | 2G | 512M | - |
+| worker | 1G | 256M | - |
+| frontend | 512M | 128M | - |
+| nginx | - | - | - |
+
+> **注意**：如果服务器内存小于8GB，建议减少Qdrant和后端的内存限制。
 
 ### 10.2 Nginx优化
 
