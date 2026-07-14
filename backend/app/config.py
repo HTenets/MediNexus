@@ -8,7 +8,11 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     llm_provider: str = "ollama"
+    llm_api_key: str = ""
+    llm_model: str = ""
+    llm_base_url: str = ""
     ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5:14b"
     demo_mode: bool = True
     allowed_origins: str = "*"
 

@@ -40,7 +40,7 @@ class ReviewAgent(BaseAgent):
         if not symptoms:
             return HandoverManifest(facts=["暂无待审查的诊断内容。"])
 
-        # Step 1: Independently query RAG
+        # Step 1: Independently query RAG (or seeded demo knowledge)
         if self.rag_query:
             kb_context = await self.rag_query.query_formatted(symptoms, top_k=3)
             facts.append("📋 **审查过程: 独立检索知识库验证**")
@@ -49,7 +49,14 @@ class ReviewAgent(BaseAgent):
             else:
                 facts.append("知识库检索无匹配结果 (仅基于规则审查)。")
         else:
-            facts.append("知识库未接入，仅进行规则审查。")
+            from knowledge.seed_data import search_seed_knowledge
+
+            kb_context = search_seed_knowledge(symptoms)
+            facts.append("📋 **审查过程: 独立检索临床知识库验证**")
+            if kb_context:
+                facts.append(f"检索到相关临床指引: {kb_context[:240]}")
+            else:
+                facts.append("未检索到匹配指引 (仅基于规则审查)。")
 
         # Step 2: Verify diagnosis
         diagnoses = None

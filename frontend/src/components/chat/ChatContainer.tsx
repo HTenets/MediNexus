@@ -19,9 +19,17 @@ interface ChatContainerProps {
   sessionId: string;
   socket: ConsultationSocket | null;
   quickSymptoms?: string[];
+  onStage?: (agent: string) => void;
+  onResult?: (agent: string, manifest: any) => void;
 }
 
-export default function ChatContainer({ sessionId, socket, quickSymptoms = [] }: ChatContainerProps) {
+export default function ChatContainer({
+  sessionId,
+  socket,
+  quickSymptoms = [],
+  onStage,
+  onResult,
+}: ChatContainerProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -32,6 +40,7 @@ export default function ChatContainer({ sessionId, socket, quickSymptoms = [] }:
   const [connected, setConnected] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastAgentRef = useRef<string>("");
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,13 +55,16 @@ export default function ChatContainer({ sessionId, socket, quickSymptoms = [] }:
     const unsubs = [
       socket.on("agent_start", (event) => {
         setIsProcessing(true);
+        const agent = (event.data.agent as string) || "unknown";
+        lastAgentRef.current = agent;
+        onStage?.(agent);
         setMessages((prev) => [
           ...prev,
           {
-            id: `agent-${event.data.agent || "unknown"}-${Date.now()}`,
+            id: `agent-${agent}-${Date.now()}`,
             role: "agent",
             content: "",
-            agent: (event.data.agent as string) || undefined,
+            agent,
             streaming: true,
           },
         ]);
@@ -69,8 +81,10 @@ export default function ChatContainer({ sessionId, socket, quickSymptoms = [] }:
           return updated;
         });
       }),
-      socket.on("agent_end", () => {
+      socket.on("agent_end", (event) => {
         setIsProcessing(false);
+        const manifest = (event.data?.manifest as any) || null;
+        const agent = (event.data?.agent as string) || lastAgentRef.current;
         setMessages((prev) => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
@@ -79,6 +93,7 @@ export default function ChatContainer({ sessionId, socket, quickSymptoms = [] }:
           }
           return updated;
         });
+        if (manifest) onResult?.(agent, manifest);
       }),
       socket.on("error", (event) => {
         setIsProcessing(false);

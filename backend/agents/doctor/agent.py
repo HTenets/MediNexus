@@ -160,6 +160,7 @@ class DoctorAgent(BaseAgent):
                     "diagnosis_state": DiagnosisState.COMPLETED,
                     "skill_used": skill.name if skill else None,
                     "llm_mode": True,
+                    "has_prescription": bool(parsed.get("treatment_plan")),
                 },
             )
 
@@ -224,6 +225,7 @@ class DoctorAgent(BaseAgent):
                 "diagnosis_state": DiagnosisState.INITIAL,
                 "skill_used": skill.name if skill else None,
                 "llm_mode": False,
+                "has_prescription": True,
             },
         )
 

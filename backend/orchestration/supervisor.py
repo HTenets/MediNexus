@@ -102,21 +102,25 @@ class SupervisorAgent:
 
         # Determine next agent
         next_agent = await self.route(session, session.context)
-        if next_agent != "complete" and next_agent != "emergency_protocol":
-            session.current_agent = next_agent
-        elif next_agent == "emergency_protocol":
+        session.current_agent = next_agent
+        if next_agent == "emergency_protocol":
             session.current_agent = "triage"  # stay on triage for emergency
             manifest.risk_flags.insert(0, "EMERGENCY_PROTOCOL_ACTIVATED")
 
         # Add to history
+        from datetime import datetime, timezone
+
         session.history.append({
             "role": "user",
             "content": user_input,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         })
         session.history.append({
             "role": "agent",
             "agent": session.current_agent,
-            "content": manifest.model_dump(),
+            "content": "\n".join(f"• {f}" for f in manifest.facts),
+            "manifest": manifest.model_dump(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         })
 
         return manifest
