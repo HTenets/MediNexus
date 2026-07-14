@@ -22,13 +22,13 @@ export function login(email: string, password: string, role: 'patient' | 'doctor
     })
       .then(async (response) => {
         if (!response.ok) {
-          let errorBody: Partial<{ message: string }> = {};
+          let errorBody: Partial<{ detail: string; message: string }> = {};
           try {
             errorBody = await response.json();
           } catch {
             // ignore JSON parsing error
           }
-          reject(new Error(errorBody.message || `登录失败: ${response.status}`));
+          reject(new Error(errorBody.detail || errorBody.message || `登录失败: ${response.status}`));
           return;
         }
         const data = await response.json() as LoginResponse;

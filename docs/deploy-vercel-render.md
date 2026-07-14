@@ -350,7 +350,7 @@ vi /opt/program/medinexus_deploy/MediNexus/.env
 ```bash
 POSTGRES_PASSWORD=your-strong-db-password-here
 MEDINEXUS_JWT_SECRET=your-very-long-and-secure-jwt-secret-here
-MEDINEXUS_DEMO_MODE=false
+MEDINEXUS_DEMO_MODE=true
 MEDINEXUS_ALLOWED_ORIGINS=http://你的服务器IP:80,http://你的域名.com
 NEXT_PUBLIC_API_URL=http://你的服务器IP:80
 ```
