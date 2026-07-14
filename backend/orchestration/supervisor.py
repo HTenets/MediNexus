@@ -41,10 +41,10 @@ class SupervisorAgent:
             return "doctor"
 
         elif current == "doctor":
-            has_prescription = context.get("has_prescription", False) # 有处方需要review，没有处方可以直接跟进观察
-            needs_review = context.get("needs_review", True)
-
-            if needs_review and has_prescription:
+            # Always run the review (质控审核) stage after diagnosis so the
+            # full multi-agent pipeline is demonstrated; gating on
+            # has_prescription previously skipped review for many cases.
+            if context.get("needs_review", True):
                 return "review"
             return "followup"
 

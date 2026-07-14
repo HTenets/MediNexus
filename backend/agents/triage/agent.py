@@ -75,17 +75,16 @@ class TriageAgent(BaseAgent):
             {"role": "user", "content": user_message},
         ])
 
-        try:
-            parsed = json.loads(response)
-            return {
-                "urgency": parsed.get("urgency", "routine"),
-                "department": parsed.get("department", ""),
-                "reason": parsed.get("reason", ""),
-                "key_info_gaps": parsed.get("key_info_gaps", []),
-            }
-        except (json.JSONDecodeError, KeyError) as e:
-            logger.warning("LLM triage response parse failed: %s. Raw: %s", e, response)
+        parsed = _extract_json(response)
+        if parsed is None:
+            logger.warning("LLM triage response parse failed. Raw: %s", response)
             return self._keyword_triage(symptoms)
+        return {
+            "urgency": parsed.get("urgency", "routine"),
+            "department": parsed.get("department", ""),
+            "reason": parsed.get("reason", ""),
+            "key_info_gaps": parsed.get("key_info_gaps", []),
+        }
 
     def _keyword_triage(self, symptoms: str) -> dict:
         """Keyword-based fallback triage when no LLM is available."""
@@ -160,3 +159,36 @@ class TriageAgent(BaseAgent):
             return "orthopedics"
 
         return "general"
+
+
+def _extract_json(text: str) -> dict | None:
+    """Best-effort JSON extraction from an LLM response.
+
+    Handles plain JSON, markdown code fences, and extra prose around the
+    JSON object.
+    """
+    if not text:
+        return None
+    text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    # Try markdown code fence
+    import re
+
+    m = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except json.JSONDecodeError:
+            pass
+    # Try first balanced brace pair
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            pass
+    return None
