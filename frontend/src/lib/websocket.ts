@@ -23,21 +23,23 @@ type EventCallback = (event: WsEvent) => void;
 function getWsBase(): string {
   if (typeof window === "undefined") return "ws://localhost:8000";
 
-  // Production: connect directly to Render backend
+  // Dev: connect directly to the local backend
   if (
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1"
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
   ) {
-    // Use NEXT_PUBLIC_WS_URL env var, or default to Render
-    const envUrl =
-      typeof process !== "undefined" &&
-      (process.env as Record<string, string>)["NEXT_PUBLIC_WS_URL"];
-    if (envUrl) return envUrl;
-    return "wss://medinexus-api.onrender.com";
+    return "ws://localhost:8000";
   }
 
-  // Development: connect to local backend
-  return "ws://localhost:8000";
+  // Production: connect to the same host the page is served from.
+  // Nginx reverse-proxies /ws/ -> backend, so no hardcoded external URL.
+  const envUrl =
+    typeof process !== "undefined" &&
+    (process.env as Record<string, string>)["NEXT_PUBLIC_WS_URL"];
+  if (envUrl) return envUrl;
+
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}`;
 }
 
 export class ConsultationSocket {
