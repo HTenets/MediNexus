@@ -1,5 +1,7 @@
 "use client";
 
+import { getToken } from "./auth";
+
 export type WsEventType =
   | "agent_start"
   | "token"
@@ -50,6 +52,9 @@ export class ConsultationSocket {
   private maxRetries = 3;
   private retryCount = 0;
   private onStatusChange?: (connected: boolean) => void;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private pongTimeout: ReturnType<typeof setTimeout> | null = null;
+  private static readonly HEARTBEAT_INTERVAL = 30000;
 
   constructor(sessionId: string) {
     this.sessionId = sessionId;
@@ -59,18 +64,23 @@ export class ConsultationSocket {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
     const base = getWsBase();
-    const url = `${base}/ws/${this.sessionId}`;
+    const token = getToken();
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
+    const url = `${base}/ws/${this.sessionId}${tokenQuery}`;
 
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
       this.retryCount = 0;
       this.onStatusChange?.(true);
+      this.startHeartbeat();
     };
 
     this.ws.onmessage = (msg: MessageEvent) => {
       try {
         const event: WsEvent = JSON.parse(msg.data);
+        // Any message from server counts as a pong for heartbeat purposes
+        this.resetPongTimeout();
         // Dispatch to specific event listeners
         const cbs = this.listeners.get(event.event) || [];
         cbs.forEach((cb) => cb(event));
@@ -84,6 +94,7 @@ export class ConsultationSocket {
 
     this.ws.onclose = () => {
       this.onStatusChange?.(false);
+      this.stopHeartbeat();
       this.scheduleReconnect();
     };
 
@@ -95,6 +106,7 @@ export class ConsultationSocket {
   disconnect(): void {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
+    this.stopHeartbeat();
     this.retryCount = this.maxRetries;
     this.ws?.close();
     this.ws = null;
@@ -127,6 +139,33 @@ export class ConsultationSocket {
     this.retryCount++;
     const delay = Math.min(1000 * Math.pow(2, this.retryCount), 10000);
     this.reconnectTimer = setTimeout(() => this.connect(), delay);
+  }
+
+  // ── Heartbeat to detect stale connections ───────────────────────────── //
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (this.ws?.readyState !== WebSocket.OPEN) return;
+      this.ws.send(JSON.stringify({ type: "ping" }));
+      this.pongTimeout = setTimeout(() => {
+        // No response within 10s — connection is stale, force reconnect
+        this.ws?.close();
+      }, 10000);
+    }, ConsultationSocket.HEARTBEAT_INTERVAL);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    if (this.pongTimeout) clearTimeout(this.pongTimeout);
+    this.heartbeatTimer = null;
+    this.pongTimeout = null;
+  }
+
+  private resetPongTimeout(): void {
+    if (this.pongTimeout) {
+      clearTimeout(this.pongTimeout);
+      this.pongTimeout = null;
+    }
   }
 }
 

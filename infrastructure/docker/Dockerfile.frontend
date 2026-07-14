@@ -1,7 +1,19 @@
 FROM node:20-alpine
+
 WORKDIR /app
-COPY frontend/package.json .
-RUN npm install
+
+# Install dependencies first (better layer caching)
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install --production=false
+
+# Copy source and build
 COPY frontend/ .
 RUN npm run build
+
+# Create a non-root user for the runtime stage
+RUN addgroup -S appuser && adduser -S appuser -G appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 3000
 CMD ["npm", "start"]

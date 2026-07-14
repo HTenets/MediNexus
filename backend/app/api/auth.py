@@ -3,6 +3,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, status
+from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 
 from app.core.auth import create_access_token, create_refresh_token
@@ -26,48 +27,53 @@ class LoginResponse(BaseModel):
     user: dict
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(..., description="Refresh token")
+
+
+def _build_demo_user(email: str, role: str) -> dict:
+    """Build a demo user profile (demo mode only)."""
+    avatar = email[0].upper() if email else "U"
+    role_key = role if role in ("patient", "doctor") else "patient"
+    names = {"patient": "张三", "doctor": "李医生"}
+    ids = {"patient": "patient_demo_001", "doctor": "doctor_demo_001"}
+    return {
+        "id": ids[role_key],
+        "name": names[role_key],
+        "email": email,
+        "role": role_key,
+        "avatar": avatar,
+    }
+
+
 @router.post("/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
     """User login endpoint.
-    
-    In demo mode: accepts any email/password combination and returns mock user data.
-    In production mode: validates credentials against database.
-    """
-    # Database-backed authentication is not implemented yet. In demo mode
-    # (or when no database is configured) we accept any credentials. In
-    # production mode we degrade gracefully to the same behavior with a
-    # warning instead of hard-failing every login with a 503.
-    if not (settings.demo_mode or not settings.database_url):
-        logger.warning(
-            "Database-backed authentication is not implemented yet; "
-            "falling back to demo-style login. Set MEDINEXUS_DEMO_MODE=true "
-            "to avoid this warning."
-        )
 
+    Demo mode: accepts any email/password and returns mock user data.
+    Production mode: requires real credential validation — refuses login
+    instead of silently accepting arbitrary credentials.
+    """
     if not request.email or not request.password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="邮箱和密码不能为空",
         )
 
-    mock_users = {
-        "patient": {
-            "id": "patient_demo_001",
-            "name": "张三",
-            "email": request.email,
-            "role": "patient",
-            "avatar": request.email[0].upper(),
-        },
-        "doctor": {
-            "id": "doctor_demo_001",
-            "name": "李医生",
-            "email": request.email,
-            "role": "doctor",
-            "avatar": request.email[0].upper(),
-        },
-    }
+    if settings.demo_mode or not settings.database_url:
+        user = _build_demo_user(request.email, request.role)
+    else:
+        # Production mode: database-backed auth must be implemented.
+        # Do NOT fall back to accepting arbitrary credentials.
+        logger.error(
+            "Production login attempted but database auth is not implemented. "
+            "Set MEDINEXUS_DEMO_MODE=true until DB auth is ready."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="认证服务暂未配置，请联系管理员",
+        )
 
-    user = mock_users.get(request.role, mock_users["patient"])
     access_token = create_access_token(subject=user["id"])
     refresh_token = create_refresh_token(subject=user["id"])
 
@@ -80,15 +86,39 @@ async def login(request: LoginRequest):
 
 
 @router.post("/refresh")
-async def refresh_token(refresh_token: str):
-    """Refresh access token using refresh token."""
-    if not (settings.demo_mode or not settings.database_url):
-        logger.warning(
-            "Database-backed authentication is not implemented yet; "
-            "falling back to demo-style token refresh."
+async def refresh_token(request: RefreshRequest):
+    """Refresh access token using a valid refresh token.
+
+    The refresh token is decoded and its subject is used to mint a new
+    access token. Invalid or expired refresh tokens are rejected.
+    """
+    try:
+        payload = jwt.decode(
+            request.refresh_token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
         )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效或过期的refresh token",
+        )
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌类型错误，需要refresh token",
+        )
+
+    subject = payload.get("sub")
+    if not subject:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="令牌缺少用户信息",
+        )
+
     return {
-        "access_token": create_access_token(subject="demo_user"),
+        "access_token": create_access_token(subject=subject),
         "token_type": "bearer",
     }
 

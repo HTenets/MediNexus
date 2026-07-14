@@ -1,3 +1,5 @@
+import { getToken, refreshAccessToken } from "./auth";
+
 const API_BASE = "/api/v1";
 
 export interface ApiError {
@@ -101,7 +103,7 @@ export interface HealthCheckResponse {
 }
 
 function getAuthHeaders(): HeadersInit {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = getToken();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
@@ -116,13 +118,27 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   try {
-    const response = await fetch(`${API_BASE}${path}`, {
+    let response = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers: {
         ...getAuthHeaders(),
         ...options.headers,
       },
     });
+
+    // Auto-refresh on 401: try refreshing the token once, then retry
+    if (response.status === 401) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        response = await fetch(`${API_BASE}${path}`, {
+          ...options,
+          headers: {
+            ...getAuthHeaders(),
+            ...options.headers,
+          },
+        });
+      }
+    }
 
     if (!response.ok) {
       let errorBody: Partial<ApiError> = {};

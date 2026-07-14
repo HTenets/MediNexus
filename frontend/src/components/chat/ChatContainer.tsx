@@ -103,6 +103,14 @@ export default function ChatContainer({
           { id: `error-${Date.now()}`, role: "system", content: `错误: ${errMsg}` },
         ]);
       }),
+      socket.on("info", (event) => {
+        const infoMsg = (event.data?.message as string) || "";
+        if (!infoMsg) return;
+        setMessages((prev) => [
+          ...prev,
+          { id: `info-${Date.now()}`, role: "system", content: infoMsg },
+        ]);
+      }),
     ];
 
     return () => unsubs.forEach((u) => u());
@@ -125,6 +133,12 @@ export default function ChatContainer({
   const handleQuickSymptom = (symptom: string) => {
     handleSend(`我有${symptom}症状`);
   };
+
+  const handleFinalize = useCallback(() => {
+    if (!socket) return;
+    setIsProcessing(true);
+    socket.send({ type: "finalize" });
+  }, [socket]);
 
   return (
     <div className="flex flex-col h-full">
@@ -205,7 +219,16 @@ export default function ChatContainer({
 
       {quickSymptoms.length > 0 && (
         <div className="px-4 py-3 border-t border-medical-border bg-gray-50/50">
-          <div className="text-xs text-medical-text-muted mb-2">快速选择症状（点击即可发送）：</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-medical-text-muted">快速选择症状（点击即可发送）：</div>
+            <button
+              onClick={handleFinalize}
+              disabled={isProcessing}
+              className="gradient-primary text-white rounded-full px-4 py-1.5 text-xs font-medium hover:shadow-glow transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              生成诊疗方案 →
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {quickSymptoms.map((symptom) => (
               <button

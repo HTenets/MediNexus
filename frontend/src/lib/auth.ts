@@ -8,6 +8,7 @@ export interface User {
 
 interface LoginResponse {
   access_token: string;
+  refresh_token: string;
   user: User;
 }
 
@@ -33,6 +34,7 @@ export function login(email: string, password: string, role: 'patient' | 'doctor
         }
         const data = await response.json() as LoginResponse;
         setToken(data.access_token);
+        setRefreshToken(data.refresh_token);
         setUser(data.user);
         resolve({ token: data.access_token, user: data.user });
       })
@@ -44,11 +46,16 @@ export function login(email: string, password: string, role: 'patient' | 'doctor
 
 export function logout(): void {
   localStorage.removeItem('token');
+  localStorage.removeItem('refresh_token');
   localStorage.removeItem('user');
 }
 
 export function getToken(): string | null {
   return typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+}
+
+export function getRefreshToken(): string | null {
+  return typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
 }
 
 export function getUser(): User | null {
@@ -70,10 +77,37 @@ export function setToken(token: string): void {
   localStorage.setItem('token', token);
 }
 
+export function setRefreshToken(token: string): void {
+  localStorage.setItem('refresh_token', token);
+}
+
 export function setUser(user: User): void {
   localStorage.setItem('user', JSON.stringify(user));
 }
 
 export function isLoggedIn(): boolean {
   return getToken() !== null;
+}
+
+/**
+ * Attempt to refresh the access token using the stored refresh token.
+ * Returns the new access token on success, or null on failure.
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  try {
+    const response = await fetch('/api/v1/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json() as { access_token: string };
+    setToken(data.access_token);
+    return data.access_token;
+  } catch {
+    return null;
+  }
 }

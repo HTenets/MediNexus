@@ -17,6 +17,31 @@ from app.schemas.agent import HandoverManifest
 logger = logging.getLogger(__name__)
 
 
+def _seed_search(symptoms: str) -> str:
+    """Load seed knowledge without triggering the ``knowledge`` package init.
+
+    ``knowledge/__init__.py`` imports qdrant-dependent modules, which may not
+    be installed in the runtime image. Import the dependency-free
+    ``seed_data`` module directly by file path to avoid that.
+    """
+    try:
+        import importlib.util
+        import os
+
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "knowledge",
+            "seed_data.py",
+        )
+        spec = importlib.util.spec_from_file_location("_seed_data", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.search_seed_knowledge(symptoms)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Seed knowledge lookup failed: %s", e)
+        return ""
+
+
 @registry.register
 class ReviewAgent(BaseAgent):
     """Reviews DoctorAgent output by independently querying the knowledge base."""
@@ -49,9 +74,7 @@ class ReviewAgent(BaseAgent):
             else:
                 facts.append("知识库检索无匹配结果 (仅基于规则审查)。")
         else:
-            from knowledge.seed_data import search_seed_knowledge
-
-            kb_context = search_seed_knowledge(symptoms)
+            kb_context = _seed_search(symptoms)
             facts.append("📋 **审查过程: 独立检索临床知识库验证**")
             if kb_context:
                 facts.append(f"检索到相关临床指引: {kb_context[:240]}")

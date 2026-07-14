@@ -1,13 +1,36 @@
-"""SupervisorAgent — manages session state and routes patients to the correct agent."""
+"""SupervisorAgent — manages session state and routes patients to the correct agent.
 
+Sessions are stored in-memory by default. When REDIS_URL is configured,
+sessions are serialized to Redis so they persist across restarts and are
+shared across multiple Uvicorn workers.
+"""
+
+import json
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from agents.registry import registry
+from app.config import settings
 from app.schemas.agent import HandoverManifest
 from orchestration.state import SessionState, GraphState
 
 logger = logging.getLogger(__name__)
+
+# Optional Redis client for distributed session storage
+_redis = None
+if settings.redis_url:
+    try:
+        import redis.asyncio as aioredis
+        _redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+        logger.info("Session store: Redis connected at %s", settings.redis_url)
+    except ImportError:
+        logger.warning("redis package not installed — sessions will use in-memory store")
+    except Exception as e:
+        logger.warning("Redis connection failed (%s) — falling back to in-memory store", e)
+
+_SESSION_KEY_PREFIX = "medinexus:session:"
+_SESSION_TTL = 3600  # 1 hour
 
 
 class SupervisorAgent:
@@ -15,7 +38,7 @@ class SupervisorAgent:
 
     Responsibilities:
       - Determine the next agent based on triage result & conversation context
-      - Maintain session state and history
+      - Maintain session state and history (Redis-backed when available)
       - Coordinate multi-step flows (triage → doctor → review → followup)
     """
 
@@ -32,7 +55,6 @@ class SupervisorAgent:
             urgency = triage_result.get("urgency", "routine")
 
             if urgency == "emergency":
-                # Emergency cases bypass normal flow
                 return "emergency_protocol"
 
             if department and department != "general":
@@ -41,9 +63,6 @@ class SupervisorAgent:
             return "doctor"
 
         elif current == "doctor":
-            # Always run the review (质控审核) stage after diagnosis so the
-            # full multi-agent pipeline is demonstrated; gating on
-            # has_prescription previously skipped review for many cases.
             if context.get("needs_review", True):
                 return "review"
             return "followup"
@@ -71,10 +90,37 @@ class SupervisorAgent:
             current_agent="triage",
         )
         self._sessions[session_id] = session
+        await self._persist_session(session)
         return session
 
-    def get_session(self, session_id: str) -> SessionState | None:
+    async def get_session(self, session_id: str) -> SessionState | None:
+        """Retrieve a session from Redis (if available) or in-memory store."""
+        # Try Redis first
+        if _redis:
+            try:
+                data = await _redis.get(f"{_SESSION_KEY_PREFIX}{session_id}")
+                if data:
+                    obj = json.loads(data)
+                    return SessionState(**obj)
+            except Exception as e:
+                logger.warning("Redis session load failed: %s", e)
+
+        # Fall back to in-memory
         return self._sessions.get(session_id)
+
+    async def _persist_session(self, session: SessionState):
+        """Save session to Redis (if available)."""
+        if _redis:
+            try:
+                await _redis.setex(
+                    f"{_SESSION_KEY_PREFIX}{session.session_id}",
+                    _SESSION_TTL,
+                    json.dumps(session.model_dump(), default=str),
+                )
+            except Exception as e:
+                logger.warning("Redis session save failed: %s", e)
+        # Always keep in-memory copy too for single-worker fallback
+        self._sessions[session.session_id] = session
 
     async def run_agent(self, session: SessionState, user_input: str, llm_client=None) -> HandoverManifest:
         """Run the current agent with user input and return a manifest."""
@@ -88,7 +134,7 @@ class SupervisorAgent:
             "llm_client": llm_client,
         }
 
-        # Pre-process hook
+        # Pre-process hook (PII sanitization, emergency detection)
         processed = await agent.on_pre_process(context)
 
         # Run agent
@@ -104,12 +150,10 @@ class SupervisorAgent:
         next_agent = await self.route(session, session.context)
         session.current_agent = next_agent
         if next_agent == "emergency_protocol":
-            session.current_agent = "triage"  # stay on triage for emergency
+            session.current_agent = "triage"
             manifest.risk_flags.insert(0, "EMERGENCY_PROTOCOL_ACTIVATED")
 
         # Add to history
-        from datetime import datetime, timezone
-
         session.history.append({
             "role": "user",
             "content": user_input,
@@ -123,6 +167,7 @@ class SupervisorAgent:
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
 
+        await self._persist_session(session)
         return manifest
 
     def session_to_graph_state(self, session: SessionState) -> GraphState:

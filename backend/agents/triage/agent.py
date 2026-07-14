@@ -79,8 +79,15 @@ class TriageAgent(BaseAgent):
         if parsed is None:
             logger.warning("LLM triage response parse failed. Raw: %s", response)
             return self._keyword_triage(symptoms)
+
+        # Validate urgency — must be one of the allowed values
+        urgency = parsed.get("urgency", "routine")
+        if urgency not in ("routine", "urgent", "emergency"):
+            logger.warning("LLM returned invalid urgency '%s', falling back to keyword triage", urgency)
+            return self._keyword_triage(symptoms)
+
         return {
-            "urgency": parsed.get("urgency", "routine"),
+            "urgency": urgency,
             "department": parsed.get("department", ""),
             "reason": parsed.get("reason", ""),
             "key_info_gaps": parsed.get("key_info_gaps", []),

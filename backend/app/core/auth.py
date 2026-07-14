@@ -49,10 +49,14 @@ def decode_token(token: str) -> dict[str, Any]:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> str:
-    """FastAPI dependency: extract user ID from Bearer token."""
+    """FastAPI dependency: extract user ID from Bearer access token.
+
+    Only access tokens are accepted for API authentication. Refresh tokens
+    must be used exclusively with the /auth/refresh endpoint.
+    """
     payload = decode_token(credentials.credentials)
-    if payload.get("type") not in ("access", "refresh"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的令牌类型")
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的令牌类型，需要access token")
     return payload.get("sub", "anonymous")
 
 

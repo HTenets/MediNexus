@@ -41,9 +41,10 @@ async def start_consultation(request: ConsultationStartRequest):
 @router.get("/{consult_id}", response_model=ConsultationStatusResponse)
 async def get_consultation(consult_id: str):
     """Get the current status of a consultation session."""
-    session = supervisor.get_session(consult_id)
+    session = await supervisor.get_session(consult_id)
     if not session:
-        return ConsultationStatusResponse(session_id=consult_id, status="not_found")
+        from fastapi import HTTPException, status as http_status
+        raise HTTPException(status_code=http_status.HTTP_404_NOT_FOUND, detail="会话不存在")
 
     return ConsultationStatusResponse(
         session_id=session.session_id,
