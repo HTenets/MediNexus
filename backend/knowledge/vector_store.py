@@ -3,10 +3,6 @@
 import logging
 from typing import Any
 
-from qdrant_client import QdrantClient
-from qdrant_client.http import models
-from qdrant_client.http.models import Distance, VectorParams
-
 logger = logging.getLogger(__name__)
 
 
@@ -16,8 +12,18 @@ class VectorStore:
 
     def __init__(self, host: str = "localhost", port: int = 6333, grpc_port: int = 6334,
                  prefer_grpc: bool = False, vector_size: int = 768):
+        # Import qdrant lazily so that `import knowledge` (and the demo
+        # path that only uses seed data) does not require qdrant-client to
+        # be installed.
+        from qdrant_client import QdrantClient
+        from qdrant_client.http import models
+        from qdrant_client.http.models import Distance, VectorParams
+
         self.client = QdrantClient(host=host, port=port, grpc_port=grpc_port, prefer_grpc=prefer_grpc)
         self.vector_size = vector_size
+        self._models = models
+        self._distance = Distance
+        self._vector_params = VectorParams
 
     # ── Collection Management ─────────────────────────────────────────── #
 
@@ -35,7 +41,7 @@ class VectorStore:
 
             self.client.create_collection(
                 collection_name=name,
-                vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE),
+                vectors_config=self._vector_params(size=self.vector_size, distance=self._distance.COSINE),
             )
             logger.info("Created collection: %s (size=%d)", name, self.vector_size)
             return True
@@ -68,7 +74,7 @@ class VectorStore:
         points = []
         for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
             point_id = hash(chunk.get("text", str(i))) & 0x7FFFFFFFFFFFFFFF
-            points.append(models.PointStruct(
+            points.append(self._models.PointStruct(
                 id=point_id,
                 vector=emb,
                 payload={
