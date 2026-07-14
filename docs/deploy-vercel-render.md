@@ -333,16 +333,16 @@ docker compose version
 ### E7. 克隆代码
 
 ```bash
-cd /opt
-git clone https://github.com/HTenets/MediNexus.git
+cd /opt/program/medinexus_deploy
+git clone https://github.com/HTenets/MediNexus.git MediNexus
 cd MediNexus
 ```
 
 ### E8. 配置环境变量
 
 ```bash
-cp .env.docker .env
-vi .env
+cp .env.docker /opt/program/medinexus_deploy/MediNexus/.env
+vi /opt/program/medinexus_deploy/MediNexus/.env
 ```
 
 修改以下配置：
@@ -361,7 +361,7 @@ NEXT_PUBLIC_API_URL=http://你的服务器IP:80
 
 ```bash
 # 后台启动所有服务
-docker compose up -d
+docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml up -d
 ```
 
 > ⏱ 首次构建约 5-10 分钟，取决于服务器带宽和配置。
@@ -369,7 +369,7 @@ docker compose up -d
 查看服务状态：
 
 ```bash
-docker compose ps
+docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml ps
 ```
 
 ### E10. 验证部署
@@ -383,10 +383,10 @@ docker compose ps
 
 ```bash
 # 查看所有服务日志
-docker compose logs
+docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs
 
 # 查看特定服务日志（如 backend）
-docker compose logs backend -f
+docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs backend -f
 ```
 
 ### E11. 配置 HTTPS（可选但推荐）
@@ -401,7 +401,7 @@ apt install -y certbot python3-certbot-nginx
 
 ```bash
 # 停止服务
-docker compose down
+docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml down
 
 # 修改 infrastructure/nginx/nginx.conf，添加 HTTPS 配置
 vi infrastructure/nginx/nginx.conf
@@ -416,7 +416,7 @@ certbot certonly --standalone -d your-domain.com
 更新 Nginx 配置，将证书路径填入配置文件，然后重启服务：
 
 ```bash
-docker compose up -d
+docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml up -d
 ```
 
 ### E12. 数据持久化
@@ -444,10 +444,10 @@ docker run -d \
 
 | 操作 | 命令 |
 |------|------|
-| 查看容器状态 | `docker compose ps` |
-| 查看日志 | `docker compose logs -f` |
-| 重启服务 | `docker compose restart` |
-| 更新代码 | `git pull && docker compose up -d --build` |
+| 查看容器状态 | `docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml ps` |
+| 查看日志 | `docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs -f` |
+| 重启服务 | `docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml restart` |
+| 更新代码 | `cd /opt/program/medinexus_deploy/MediNexus && git pull && docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml up -d --build` |
 | 清理未使用资源 | `docker system prune -a` |
 
 ---

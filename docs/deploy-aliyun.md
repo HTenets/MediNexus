@@ -109,7 +109,7 @@ systemctl start docker
 systemctl enable docker
 
 # 创建项目目录
-mkdir -p /opt/medinexus/{logs,data/postgres,data/redis,data/qdrant}
+mkdir -p /opt/program/medinexus_deploy/{logs,data/postgres,data/redis,data/qdrant}
 
 # 配置防火墙
 ufw allow 80/tcp
@@ -120,119 +120,7 @@ ufw --force enable
 
 ## 5. 部署项目
 
-### 5.1 方式一：本地打包上传部署（推荐）
-
-此方式适用于从本地开发环境部署到服务器。
-
-#### 步骤1：打包代码
-
-```bash
-# 在本地项目目录执行
-cd e:\Program\MediNexus
-tar --exclude='node_modules' --exclude='.git' --exclude='*.pyc' \
-    --exclude='__pycache__' --exclude='*.log' --exclude='.env' \
-    -czf medinexus-deploy.tar.gz .
-```
-
-#### 步骤2：上传代码到服务器
-
-```bash
-scp medinexus-deploy.tar.gz root@47.80.10.180:/opt/medinexus/
-```
-
-#### 步骤3：解压代码
-
-```bash
-# 在服务器上执行
-ssh root@47.80.10.180
-cd /opt/medinexus
-rm -rf deploy && mkdir -p deploy
-tar -xzf medinexus-deploy.tar.gz -C deploy --strip-components=1
-```
-
-#### 步骤4：配置环境变量
-
-```bash
-cp /opt/medinexus/deploy/scripts/deploy/.env.production /opt/medinexus/.env
-cp /opt/medinexus/deploy/scripts/deploy/docker-compose.prod.yml /opt/medinexus/docker-compose.yml
-cp /opt/medinexus/deploy/scripts/deploy/nginx.conf /opt/medinexus/deploy/infrastructure/nginx/nginx.conf
-```
-
-**编辑环境变量文件**：
-
-```bash
-vim /opt/medinexus/.env
-```
-
-修改以下关键配置：
-
-```env
-# 数据库密码（必须修改）
-POSTGRES_PASSWORD=your_secure_postgres_password_here
-
-# JWT密钥（必须修改）
-MEDINEXUS_JWT_SECRET=your_very_secure_jwt_secret_here_must_be_long_and_random
-
-# 允许的来源
-MEDINEXUS_ALLOWED_ORIGINS=http://47.80.10.180
-
-# 前端API地址
-NEXT_PUBLIC_API_URL=http://47.80.10.180
-```
-
-**生成随机密码的方法**：
-
-如果你不知道如何设置密码，可以使用以下命令自动生成随机密码：
-
-```bash
-# 生成数据库密码（16位随机字符串）
-POSTGRES_PASSWORD=$(openssl rand -hex 16)
-echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
-
-# 生成JWT密钥（32位随机字符串）
-JWT_SECRET=$(openssl rand -hex 32)
-echo "MEDINEXUS_JWT_SECRET=$JWT_SECRET"
-```
-
-**一键生成并写入.env文件**（推荐）：
-
-```bash
-# 在服务器上执行，自动生成所有密码并写入.env文件
-POSTGRES_PASSWORD=$(openssl rand -hex 16)
-JWT_SECRET=$(openssl rand -hex 32)
-
-cat > /opt/medinexus/.env <<EOF
-POSTGRES_DB=medinexus
-POSTGRES_USER=medinexus
-POSTGRES_PASSWORD=$POSTGRES_PASSWORD
-MEDINEXUS_DATABASE_URL=postgresql+asyncpg://medinexus:$POSTGRES_PASSWORD@postgres:5432/medinexus
-MEDINEXUS_REDIS_URL=redis://redis:6379/0
-MEDINEXUS_QDRANT_URL=http://qdrant:6333
-MEDINEXUS_JWT_SECRET=$JWT_SECRET
-MEDINEXUS_DEMO_MODE=false
-MEDINEXUS_ALLOWED_ORIGINS=http://47.80.10.180
-MEDINEXUS_LLM_PROVIDER=ollama
-MEDINEXUS_OLLAMA_BASE_URL=http://localhost:11434
-NEXT_PUBLIC_API_URL=http://47.80.10.180
-EOF
-
-echo "✅ .env 文件已生成！"
-```
-
-> **注意**：
-> - `POSTGRES_PASSWORD` 和 `MEDINEXUS_DATABASE_URL` 中的密码必须一致
-> - JWT密钥建议至少32个字符，越长越安全
-> - 请妥善保存这些密码，丢失后无法恢复
-
-#### 步骤5：构建并启动服务
-
-```bash
-cd /opt/medinexus/deploy
-docker-compose -f /opt/medinexus/docker-compose.yml build --no-cache
-docker-compose -f /opt/medinexus/docker-compose.yml up -d
-```
-
-### 5.2 方式二：服务器直接克隆项目部署
+### 5.1 方式一：服务器直接克隆项目部署（推荐）
 
 此方式适用于直接在服务器上克隆仓库进行部署。
 
@@ -240,25 +128,23 @@ docker-compose -f /opt/medinexus/docker-compose.yml up -d
 
 ```bash
 # 在服务器上执行
-cd /opt/medinexus
-git clone <your-repository-url> deploy
-cd deploy
+cd /opt/program/medinexus_deploy
+git clone https://github.com/HTenets/MediNexus.git MediNexus
+cd MediNexus
 ```
-
-> **注意**：将 `<your-repository-url>` 替换为你的实际仓库地址。
 
 #### 步骤2：配置环境变量
 
 ```bash
-cp scripts/deploy/.env.production /opt/medinexus/.env
-cp scripts/deploy/docker-compose.prod.yml /opt/medinexus/docker-compose.yml
+cp scripts/deploy/.env.production /opt/program/medinexus_deploy/MediNexus/.env
+cp scripts/deploy/docker-compose.prod.yml /opt/program/medinexus_deploy/MediNexus/docker-compose.yml
 cp scripts/deploy/nginx.conf infrastructure/nginx/nginx.conf
 ```
 
 **编辑环境变量文件**：
 
 ```bash
-vim /opt/medinexus/.env
+vim /opt/program/medinexus_deploy/MediNexus/.env
 ```
 
 修改以下关键配置：
@@ -298,7 +184,7 @@ echo "MEDINEXUS_JWT_SECRET=$JWT_SECRET"
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 JWT_SECRET=$(openssl rand -hex 32)
 
-cat > /opt/medinexus/.env <<EOF
+cat > /opt/program/medinexus_deploy/MediNexus/.env <<EOF
 POSTGRES_DB=medinexus
 POSTGRES_USER=medinexus
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
@@ -324,19 +210,19 @@ echo "✅ .env 文件已生成！"
 #### 步骤3：创建数据目录
 
 ```bash
-mkdir -p /opt/medinexus/{logs,data/postgres,data/redis,data/qdrant}
-chown -R $(whoami):$(whoami) /opt/medinexus
+mkdir -p /opt/program/medinexus_deploy/{logs,data/postgres,data/redis,data/qdrant}
+chown -R $(whoami):$(whoami) /opt/program/medinexus_deploy
 ```
 
 #### 步骤4：构建并启动服务
 
 ```bash
-cd /opt/medinexus/deploy
-docker-compose -f /opt/medinexus/deploy/docker-compose.yml build --no-cache
-docker-compose -f /opt/medinexus/deploy/docker-compose.yml up -d 
+cd /opt/program/medinexus_deploy/MediNexus
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build --no-cache
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml up -d 
 ```
 
-### 5.3 方式三：使用一键部署脚本
+### 5.2 方式二：使用一键部署脚本
 
 ```bash
 # 在本地项目目录执行
@@ -351,7 +237,7 @@ bash scripts/deploy/deploy.sh -f
 | 参数 | 说明 |
 |------|------|
 | `-h, --help` | 显示帮助信息 |
-| `-u, --upload` | 仅上传代码 |
+| `-u, --upload` | 仅更新代码（git pull） |
 | `-b, --build` | 仅构建镜像 |
 | `-s, --start` | 仅启动服务 |
 | `-d, --down` | 停止服务 |
@@ -382,9 +268,9 @@ certbot certonly --nginx -d medinexus.example.com
 # 私钥: /etc/letsencrypt/live/medinexus.example.com/privkey.pem
 
 # 创建证书目录并复制证书
-mkdir -p /opt/medinexus/certs
-cp /etc/letsencrypt/live/medinexus.example.com/fullchain.pem /opt/medinexus/certs/
-cp /etc/letsencrypt/live/medinexus.example.com/privkey.pem /opt/medinexus/certs/
+mkdir -p /opt/program/medinexus_deploy/certs
+cp /etc/letsencrypt/live/medinexus.example.com/fullchain.pem /opt/program/medinexus_deploy/certs/
+cp /etc/letsencrypt/live/medinexus.example.com/privkey.pem /opt/program/medinexus_deploy/certs/
 ```
 
 4. **更新Nginx配置**：使用支持HTTPS的配置文件（参考 `scripts/deploy/nginx-ssl.conf`）
@@ -392,9 +278,9 @@ cp /etc/letsencrypt/live/medinexus.example.com/privkey.pem /opt/medinexus/certs/
 ### 6.2 使用自签名证书（仅测试环境）
 
 ```bash
-mkdir -p /opt/medinexus/certs
-openssl req -x509 -newkey rsa:4096 -keyout /opt/medinexus/certs/privkey.pem \
-    -out /opt/medinexus/certs/fullchain.pem -days 365 -nodes \
+mkdir -p /opt/program/medinexus_deploy/certs
+openssl req -x509 -newkey rsa:4096 -keyout /opt/program/medinexus_deploy/certs/privkey.pem \
+    -out /opt/program/medinexus_deploy/certs/fullchain.pem -days 365 -nodes \
     -subj "/CN=47.80.10.180"
 ```
 
@@ -406,36 +292,36 @@ openssl req -x509 -newkey rsa:4096 -keyout /opt/medinexus/certs/privkey.pem \
 
 ```bash
 # 在服务器上执行
-cd /opt/medinexus/deploy
-docker-compose -f /opt/medinexus/docker-compose.yml ps
+cd /opt/program/medinexus_deploy/MediNexus
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml ps
 ```
 
 ### 7.2 查看日志
 
 ```bash
 # 查看所有服务日志
-docker-compose -f /opt/medinexus/docker-compose.yml logs -f
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs -f
 
 # 查看特定服务日志
-docker-compose -f /opt/medinexus/docker-compose.yml logs -f backend
-docker-compose -f /opt/medinexus/docker-compose.yml logs -f frontend
-docker-compose -f /opt/medinexus/docker-compose.yml logs -f nginx
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs -f backend
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs -f frontend
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs -f nginx
 ```
 
 ### 7.3 启动/停止/重启服务
 
 ```bash
 # 启动服务
-docker-compose -f /opt/medinexus/docker-compose.yml up -d
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml up -d
 
 # 停止服务
-docker-compose -f /opt/medinexus/docker-compose.yml down
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml down
 
 # 重启服务
-docker-compose -f /opt/medinexus/docker-compose.yml restart
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml restart
 
 # 重启特定服务
-docker-compose -f /opt/medinexus/docker-compose.yml restart backend
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml restart backend
 ```
 
 ### 7.4 更新代码
@@ -481,27 +367,27 @@ curl http://localhost:6333/collections
 ### 9.1 备份PostgreSQL
 
 ```bash
-docker exec medinexus-postgres-1 pg_dump -U medinexus medinexus > /opt/medinexus/backup/postgres_backup.sql
+docker exec medinexus-postgres-1 pg_dump -U medinexus medinexus > /opt/program/medinexus_deploy/backup/postgres_backup.sql
 ```
 
 ### 9.2 备份Redis
 
 ```bash
 docker exec medinexus-redis-1 redis-cli SAVE
-docker cp medinexus-redis-1:/data/dump.rdb /opt/medinexus/backup/
+docker cp medinexus-redis-1:/data/dump.rdb /opt/program/medinexus_deploy/backup/
 ```
 
 ### 9.3 备份Qdrant
 
 ```bash
-tar -czf /opt/medinexus/backup/qdrant_backup.tar.gz /opt/medinexus/data/qdrant
+tar -czf /opt/program/medinexus_deploy/backup/qdrant_backup.tar.gz /opt/program/medinexus_deploy/data/qdrant
 ```
 
 ### 9.4 自动化备份脚本
 
 ```bash
 #!/bin/bash
-BACKUP_DIR="/opt/medinexus/backup"
+BACKUP_DIR="/opt/program/medinexus_deploy/backup"
 DATE=$(date +%Y%m%d_%H%M%S)
 
 mkdir -p $BACKUP_DIR
@@ -509,7 +395,7 @@ mkdir -p $BACKUP_DIR
 docker exec medinexus-postgres-1 pg_dump -U medinexus medinexus > $BACKUP_DIR/postgres_$DATE.sql
 docker exec medinexus-redis-1 redis-cli SAVE
 docker cp medinexus-redis-1:/data/dump.rdb $BACKUP_DIR/redis_$DATE.rdb
-tar -czf $BACKUP_DIR/qdrant_$DATE.tar.gz /opt/medinexus/data/qdrant
+tar -czf $BACKUP_DIR/qdrant_$DATE.tar.gz /opt/program/medinexus_deploy/data/qdrant
 
 find $BACKUP_DIR -type f -mtime +7 -delete
 ```
@@ -586,13 +472,13 @@ POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
 
 ```bash
 # 查看所有服务日志
-docker-compose -f /opt/medinexus/docker-compose.yml logs
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs
 
 # 查看最近100行日志
-docker-compose -f /opt/medinexus/docker-compose.yml logs --tail=100
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs --tail=100
 
 # 实时查看日志
-docker-compose -f /opt/medinexus/docker-compose.yml logs -f
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml logs -f
 ```
 
 ### 11.3 Docker镜像加速器
@@ -611,8 +497,8 @@ systemctl restart docker
 ## 12. 目录结构
 
 ```
-/opt/medinexus/
-├── deploy/                    # 项目代码
+/opt/program/medinexus_deploy/
+├── MediNexus/                 # 项目代码
 │   ├── backend/               # 后端代码
 │   ├── frontend/              # 前端代码
 │   ├── infrastructure/        # 基础设施配置

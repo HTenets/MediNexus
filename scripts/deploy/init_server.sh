@@ -48,11 +48,11 @@ systemctl enable docker
 
 echo ""
 echo "6. 创建项目目录..."
-mkdir -p /opt/medinexus
-mkdir -p /opt/medinexus/logs
-mkdir -p /opt/medinexus/data/postgres
-mkdir -p /opt/medinexus/data/redis
-mkdir -p /opt/medinexus/data/qdrant
+mkdir -p /opt/program/medinexus_deploy
+mkdir -p /opt/program/medinexus_deploy/logs
+mkdir -p /opt/program/medinexus_deploy/data/postgres
+mkdir -p /opt/program/medinexus_deploy/data/redis
+mkdir -p /opt/program/medinexus_deploy/data/qdrant
 
 echo ""
 echo "7. 配置防火墙..."
@@ -75,6 +75,7 @@ echo "  服务器环境初始化完成！"
 echo "=========================================="
 echo ""
 echo "接下来请执行："
-echo "1. 将项目代码上传到 /opt/medinexus"
+echo "1. 克隆代码仓库到 /opt/program/medinexus_deploy/MediNexus"
+echo "   git clone <your-repository-url> /opt/program/medinexus_deploy/MediNexus"
 echo "2. 运行 deploy.sh 脚本进行部署"
 echo ""

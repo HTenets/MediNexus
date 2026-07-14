@@ -2,8 +2,8 @@
 
 set -e
 
-PROJECT_DIR="/opt/medinexus"
-DEPLOY_DIR="/opt/medinexus/deploy"
+PROJECT_DIR="/opt/program/medinexus_deploy"
+DEPLOY_DIR="/opt/program/medinexus_deploy/MediNexus"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "=========================================="
@@ -15,7 +15,7 @@ usage() {
     echo ""
     echo "选项:"
     echo "  -h, --help          显示帮助信息"
-    echo "  -u, --upload        上传代码到服务器"
+    echo "  -u, --upload        上传代码到服务器 (git pull)"
     echo "  -b, --build         构建 Docker 镜像"
     echo "  -s, --start         启动服务"
     echo "  -d, --down          停止服务"
@@ -29,35 +29,23 @@ usage() {
 
 upload_code() {
     echo ""
-    echo "1. 打包项目代码..."
-    cd "$SCRIPT_DIR/../.."
-    rm -f medinexus-deploy.tar.gz
-    tar --exclude='node_modules' --exclude='.git' --exclude='*.pyc' \
-        --exclude='__pycache__' --exclude='*.log' --exclude='.env' \
-        -czf medinexus-deploy.tar.gz .
+    echo "1. 更新服务器代码..."
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && git pull origin main"
 
     echo ""
-    echo "2. 上传代码到服务器..."
-    scp medinexus-deploy.tar.gz root@47.80.10.180:/opt/medinexus/
+    echo "2. 复制部署配置文件..."
+    ssh root@47.80.10.180 "cp $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml $DEPLOY_DIR/docker-compose.yml"
+    ssh root@47.80.10.180 "cp $DEPLOY_DIR/scripts/deploy/.env.production $DEPLOY_DIR/.env"
+    ssh root@47.80.10.180 "cp $DEPLOY_DIR/scripts/deploy/nginx.conf $DEPLOY_DIR/infrastructure/nginx/nginx.conf"
 
     echo ""
-    echo "3. 解压代码..."
-    ssh root@47.80.10.180 "cd /opt/medinexus && rm -rf deploy && mkdir -p deploy && tar -xzf medinexus-deploy.tar.gz -C deploy --strip-components=1"
-
-    echo ""
-    echo "4. 复制部署配置文件..."
-    ssh root@47.80.10.180 "cp /opt/medinexus/deploy/scripts/deploy/docker-compose.prod.yml /opt/medinexus/docker-compose.yml"
-    ssh root@47.80.10.180 "cp /opt/medinexus/deploy/scripts/deploy/.env.production /opt/medinexus/.env"
-    ssh root@47.80.10.180 "cp /opt/medinexus/deploy/scripts/deploy/nginx.conf /opt/medinexus/deploy/infrastructure/nginx/nginx.conf"
-
-    echo ""
-    echo "✅ 代码上传完成！"
+    echo "✅ 代码更新完成！"
 }
 
 build_images() {
     echo ""
     echo "构建 Docker 镜像..."
-    ssh root@47.80.10.180 "cd /opt/medinexus/deploy && docker-compose -f /opt/medinexus/docker-compose.yml build --no-cache"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml build --no-cache"
     echo ""
     echo "✅ 镜像构建完成！"
 }
@@ -65,7 +53,7 @@ build_images() {
 start_services() {
     echo ""
     echo "启动服务..."
-    ssh root@47.80.10.180 "cd /opt/medinexus/deploy && docker-compose -f /opt/medinexus/docker-compose.yml up -d"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml up -d"
     echo ""
     echo "✅ 服务启动完成！"
     echo ""
@@ -77,7 +65,7 @@ start_services() {
 stop_services() {
     echo ""
     echo "停止服务..."
-    ssh root@47.80.10.180 "cd /opt/medinexus/deploy && docker-compose -f /opt/medinexus/docker-compose.yml down"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml down"
     echo ""
     echo "✅ 服务已停止！"
 }
@@ -85,7 +73,7 @@ stop_services() {
 restart_services() {
     echo ""
     echo "重启服务..."
-    ssh root@47.80.10.180 "cd /opt/medinexus/deploy && docker-compose -f /opt/medinexus/docker-compose.yml restart"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml restart"
     echo ""
     echo "✅ 服务重启完成！"
 }
@@ -93,7 +81,7 @@ restart_services() {
 view_logs() {
     echo ""
     echo "查看服务日志..."
-    ssh root@47.80.10.180 "cd /opt/medinexus/deploy && docker-compose -f /opt/medinexus/docker-compose.yml logs -f"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml logs -f"
 }
 
 cleanup() {
