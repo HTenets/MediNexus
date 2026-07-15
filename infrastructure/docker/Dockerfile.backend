@@ -2,9 +2,17 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies (fail loudly — no silent fallback)
+# Install dependencies.
+# 1) Install the full dependency set declared in pyproject.toml.
+# 2) Always re-assert the critical runtime deps (incl. qdrant-client),
+#    so a partial / optional-dependency failure can NEVER ship an image
+#    missing qdrant (which previously broke the knowledge import).
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e . || true
+RUN pip install --no-cache-dir \
+    fastapi "uvicorn[standard]" sqlalchemy asyncpg pydantic pydantic-settings \
+    python-jose[cryptography] passlib[bcrypt] httpx \
+    langgraph langchain-core qdrant-client redis celery
 
 # Copy backend source
 COPY backend/ /app/

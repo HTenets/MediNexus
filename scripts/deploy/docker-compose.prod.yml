@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -53,7 +51,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ../..
       dockerfile: infrastructure/docker/Dockerfile.backend
     environment:
       MEDINEXUS_DATABASE_URL: ${MEDINEXUS_DATABASE_URL:-postgresql+asyncpg://medinexus:medinexus_prod@postgres:5432/medinexus}
@@ -88,7 +86,7 @@ services:
 
   worker:
     build:
-      context: .
+      context: ../..
       dockerfile: infrastructure/docker/Dockerfile.worker
     environment:
       MEDINEXUS_DATABASE_URL: ${MEDINEXUS_DATABASE_URL:-postgresql+asyncpg://medinexus:medinexus_prod@postgres:5432/medinexus}
@@ -112,7 +110,7 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ../..
       dockerfile: infrastructure/docker/Dockerfile.frontend
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://47.80.10.180}
@@ -131,7 +129,7 @@ services:
 
   nginx:
     build:
-      context: infrastructure/nginx
+      context: ../../infrastructure/nginx
       dockerfile: Dockerfile
     ports:
       - "80:80"
