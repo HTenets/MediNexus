@@ -53,19 +53,11 @@ services:
     build:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile.backend
-    environment:
-      MEDINEXUS_DATABASE_URL: ${MEDINEXUS_DATABASE_URL:-postgresql+asyncpg://medinexus:medinexus_prod@postgres:5432/medinexus}
-      MEDINEXUS_REDIS_URL: ${MEDINEXUS_REDIS_URL:-redis://redis:6379/0}
-      MEDINEXUS_QDRANT_URL: ${MEDINEXUS_QDRANT_URL:-http://qdrant:6333}
-      MEDINEXUS_JWT_SECRET: ${MEDINEXUS_JWT_SECRET}
-      MEDINEXUS_DEMO_MODE: ${MEDINEXUS_DEMO_MODE:-true}
-      MEDINEXUS_ALLOWED_ORIGINS: ${MEDINEXUS_ALLOWED_ORIGINS:-http://47.80.10.180}
-      MEDINEXUS_LLM_PROVIDER: ${MEDINEXUS_LLM_PROVIDER:-ollama}
-      MEDINEXUS_LLM_API_KEY: ${MEDINEXUS_LLM_API_KEY:-}
-      MEDINEXUS_LLM_MODEL: ${MEDINEXUS_LLM_MODEL:-}
-      MEDINEXUS_LLM_BASE_URL: ${MEDINEXUS_LLM_BASE_URL:-}
-      MEDINEXUS_OLLAMA_BASE_URL: ${MEDINEXUS_OLLAMA_BASE_URL:-http://localhost:11434}
-      MEDINEXUS_OLLAMA_MODEL: ${MEDINEXUS_OLLAMA_MODEL:-qwen2.5:14b}
+    # Load all backend env vars (incl. the LLM API key) directly from the
+    # file. Resolved relative to THIS compose file's directory, so no
+    # `--env-file` flag is needed on the command line.
+    env_file:
+      - .env.production
     depends_on:
       postgres:
         condition: service_healthy
