@@ -1,6 +1,20 @@
-import { getToken, refreshAccessToken } from "./auth";
+import { getToken, refreshAccessToken, logout } from "./auth";
 
 const API_BASE = "/api/v1";
+
+/**
+ * Handle a definitive 401 (token invalid and refresh failed): clear stale
+ * credentials and send the user to login instead of leaving them stuck on an
+ * error screen. This commonly happens when the backend JWT secret changed
+ * (e.g. after a redeploy) so previously issued tokens no longer validate.
+ */
+function handleAuthFailure(): void {
+  if (typeof window === "undefined") return;
+  logout();
+  if (!window.location.pathname.startsWith("/login")) {
+    window.location.href = "/login";
+  }
+}
 
 export interface ApiError {
   code: number;
@@ -126,7 +140,8 @@ async function request<T>(
       },
     });
 
-    // Auto-refresh on 401: try refreshing the token once, then retry
+    // Auto-refresh on 401: try refreshing the token once, then retry.
+    // If refresh also fails, the session is dead — clear it and redirect.
     if (response.status === 401) {
       const newToken = await refreshAccessToken();
       if (newToken) {
@@ -137,6 +152,8 @@ async function request<T>(
             ...options.headers,
           },
         });
+      } else {
+        handleAuthFailure();
       }
     }
 

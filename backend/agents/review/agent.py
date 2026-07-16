@@ -7,11 +7,14 @@ Uses its own RAGQuery instance (not shared with DoctorAgent) to:
   4. Mark risk flags if findings conflict
 """
 
+import json
 import logging
+import re
 from typing import Any
 
 from agents.base import BaseAgent
 from agents.registry import registry
+from agents.review.prompt import REVIEW_LLM_PROMPT
 from app.schemas.agent import HandoverManifest
 
 logger = logging.getLogger(__name__)
@@ -51,6 +54,131 @@ class ReviewAgent(BaseAgent):
         self.rag_query = rag_query  # RAGQuery instance (independent from Doctor's)
 
     async def run(self, context: dict) -> HandoverManifest:
+        symptoms = context.get("symptoms", "")
+
+        if not symptoms:
+            return HandoverManifest(facts=["暂无待审查的诊断内容。"])
+
+        # Prefer LLM-based review; fall back to rule-based when unavailable.
+        llm = context.get("llm_client")
+        if llm:
+            try:
+                return await self._llm_review(llm, context)
+            except Exception:
+                logger.exception("LLM review failed, falling back to rule mode")
+        return await self._rule_review(context)
+
+    async def _llm_review(self, llm: Any, context: dict) -> HandoverManifest:
+        """LLM-based prescription review with concrete medication guidance."""
+        symptoms = context.get("symptoms", "")
+        diagnosis_context = context.get("diagnosis", {})
+        risk_flags = list(context.get("risk_flags", []))
+
+        # Independently retrieve knowledge for grounding
+        if self.rag_query:
+            kb_context = await self.rag_query.query_formatted(symptoms, top_k=3)
+        else:
+            kb_context = _seed_search(symptoms)
+
+        user_msg = f"## 患者主诉\n{symptoms}\n"
+        if diagnosis_context:
+            user_msg += f"\n## 医生诊断与方案\n{json.dumps(diagnosis_context, ensure_ascii=False, indent=2)}\n"
+        if kb_context:
+            user_msg += f"\n## 临床知识库参考\n{kb_context[:1200]}\n"
+        if risk_flags:
+            user_msg += f"\n## 已有风险标记\n{', '.join(risk_flags)}\n"
+
+        response = await llm.chat([
+            {"role": "system", "content": REVIEW_LLM_PROMPT},
+            {"role": "user", "content": user_msg},
+        ])
+        parsed = self._parse_json(response)
+
+        facts: list[str] = ["📋 **审查过程:** 独立检索临床知识库并复核医生方案"]
+        review_risk_flags = list(risk_flags)
+
+        summary = parsed.get("review_summary")
+        if summary:
+            facts.append(f"**审查摘要:** {summary}")
+
+        meds = parsed.get("recommended_medications") or []
+        if meds:
+            facts.append("💊 **用药建议:**")
+            for m in meds:
+                if not isinstance(m, dict):
+                    facts.append(f"- {m}")
+                    continue
+                name = m.get("name", "")
+                dosage = m.get("dosage", "")
+                course = m.get("course", "")
+                head = f"- **{name}**"
+                if dosage:
+                    head += f" — {dosage}"
+                if course:
+                    head += f"，{course}"
+                facts.append(head)
+                if m.get("rationale"):
+                    facts.append(f"  · 理由: {m['rationale']}")
+                if m.get("cautions"):
+                    facts.append(f"  · 注意: {m['cautions']}")
+        else:
+            facts.append("💊 **用药建议:** 当前信息不足以给出明确药物，建议补充症状细节或就医。")
+
+        interactions = parsed.get("interactions") or []
+        if interactions:
+            facts.append("⚠️ **相互作用:** " + "；".join(str(i) for i in interactions))
+
+        contraindications = parsed.get("contraindications") or []
+        if contraindications:
+            facts.append("🚫 **禁忌/过敏提示:** " + "；".join(str(c) for c in contraindications))
+
+        if parsed.get("differential_note"):
+            facts.append(f"💡 **鉴别提醒:** {parsed['differential_note']}")
+
+        risk_level = parsed.get("risk_level", "safe")
+        if risk_level == "high_risk":
+            facts.append("🔴 **风险等级: 高** — 请重视下方结论。")
+            if "REVIEW_HIGH_RISK" not in review_risk_flags:
+                review_risk_flags.append("REVIEW_HIGH_RISK")
+        elif risk_level == "caution":
+            facts.append("🟡 **风险等级: 需谨慎**")
+
+        evidence_level = parsed.get("evidence_level", "C")
+        facts.append(f"**证据等级:** {evidence_level} (A=指南, B=共识, C=LLM生成)")
+
+        if parsed.get("conclusion"):
+            facts.append(f"✅ **审查结论:** {parsed['conclusion']}")
+        facts.append("⚠️ **医疗免责声明:** 本审查由 AI 生成，仅供参考，处方药请在医生/药师指导下使用。")
+
+        pending_questions: list[str] = []
+        if evidence_level == "C":
+            pending_questions.append("建议: 低证据等级的建议，请结合临床判断。")
+
+        return HandoverManifest(
+            facts=facts,
+            pending_questions=pending_questions,
+            risk_flags=review_risk_flags,
+            evidence_level=evidence_level,
+            context={"review_completed": True, "review_llm_mode": True},
+        )
+
+    @staticmethod
+    def _parse_json(response: str) -> dict:
+        """Parse LLM JSON output, tolerating markdown code fences."""
+        try:
+            return json.loads(response)
+        except (json.JSONDecodeError, TypeError):
+            pass
+        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", response or "", re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except json.JSONDecodeError:
+                pass
+        logger.warning("Failed to parse LLM review response as JSON: %.100s", response)
+        return {}
+
+    async def _rule_review(self, context: dict) -> HandoverManifest:
         symptoms = context.get("symptoms", "")
         diagnosis_context = context.get("diagnosis", {})
         doctor_facts = context.get("doctor_facts", [])

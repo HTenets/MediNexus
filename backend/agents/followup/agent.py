@@ -1,8 +1,16 @@
+import json
+import logging
+import re
+from typing import Any
+
 from agents.base import BaseAgent
 from agents.registry import registry
 from app.schemas.agent import HandoverManifest
 from datetime import datetime, timedelta, timezone
+from agents.followup.prompt import FOLLOWUP_LLM_PROMPT
 from agents.followup.scheduler import get_plan_for_diagnosis
+
+logger = logging.getLogger(__name__)
 
 
 @registry.register
@@ -13,6 +21,92 @@ class FollowupAgent(BaseAgent):
         super().__init__("followup")
 
     async def run(self, context: dict) -> HandoverManifest:
+        symptoms = context.get("symptoms", "")
+        llm = context.get("llm_client")
+        if llm and symptoms:
+            try:
+                return await self._llm_followup(llm, context)
+            except Exception:
+                logger.exception("LLM followup failed, falling back to rule mode")
+        return self._rule_followup(context)
+
+    async def _llm_followup(self, llm: Any, context: dict) -> HandoverManifest:
+        """LLM-based personalized follow-up plan."""
+        symptoms = context.get("symptoms", "")
+        diagnosis = context.get("diagnosis", {})
+
+        user_msg = f"## 患者主诉\n{symptoms}\n"
+        if diagnosis:
+            user_msg += f"\n## 医生诊断与用药方案\n{json.dumps(diagnosis, ensure_ascii=False, indent=2)}\n"
+
+        response = await llm.chat([
+            {"role": "system", "content": FOLLOWUP_LLM_PROMPT},
+            {"role": "user", "content": user_msg},
+        ])
+        parsed = self._parse_json(response)
+
+        facts: list[str] = []
+        if parsed.get("summary"):
+            facts.append(f"**随访概述:** {parsed['summary']}")
+
+        plan = parsed.get("followup_plan") or []
+        if plan:
+            facts.append("📅 **随访计划:**")
+            for item in plan:
+                if isinstance(item, dict):
+                    time = item.get("time", "")
+                    action = item.get("action", "")
+                    purpose = item.get("purpose", "")
+                    line = f"- **{time}**: {action}" if time else f"- {action}"
+                    if purpose:
+                        line += f"（{purpose}）"
+                    facts.append(line)
+                else:
+                    facts.append(f"- {item}")
+
+        reminders = parsed.get("medication_reminders") or []
+        if reminders:
+            facts.append("💊 **用药提醒:**")
+            facts.extend(f"- {r}" for r in reminders)
+
+        monitoring = parsed.get("monitoring") or []
+        if monitoring:
+            facts.append("📈 **需监测:**")
+            facts.extend(f"- {m}" for m in monitoring)
+
+        warnings = parsed.get("warning_signs") or []
+        if warnings:
+            facts.append("🚨 **预警信号（出现请立即就医）:**")
+            facts.extend(f"- {w}" for w in warnings)
+
+        facts.append("⚠️ 以上为 AI 生成的随访建议，仅供参考，不构成医疗诊断。如有不适请及时就医。")
+
+        pending_questions = list(parsed.get("questions") or [])
+        pending_questions.append("随访警示: 如出现呼吸困难、剧烈疼痛等紧急情况，请立即拨打120")
+
+        return HandoverManifest(
+            facts=facts,
+            pending_questions=pending_questions,
+            risk_flags=[],
+            context={"followup_completed": True, "followup_llm_mode": True},
+        )
+
+    @staticmethod
+    def _parse_json(response: str) -> dict:
+        try:
+            return json.loads(response)
+        except (json.JSONDecodeError, TypeError):
+            pass
+        match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", response or "", re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except json.JSONDecodeError:
+                pass
+        logger.warning("Failed to parse LLM followup response as JSON: %.100s", response)
+        return {}
+
+    def _rule_followup(self, context: dict) -> HandoverManifest:
         diagnosis = context.get("diagnosis", {})
         possible_diagnoses = diagnosis.get("possible_diagnoses", []) if isinstance(diagnosis, dict) else []
         symptoms = context.get("symptoms", "")

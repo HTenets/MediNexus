@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { User, Bot, Stethoscope, Pill, MessageCircle } from "lucide-react";
+import Markdown from "@/components/ui/Markdown";
 
 interface ChatMessageProps {
   role: "user" | "agent" | "system";
@@ -136,11 +137,11 @@ export default function ChatMessage({ role, content, agent, streaming }: ChatMes
           )}
           
           <div
-            className={`text-sm leading-relaxed whitespace-pre-wrap ${
-              isUser ? "text-white" : "text-medical-text-primary"
+            className={`text-sm leading-relaxed ${
+              isUser ? "text-white whitespace-pre-wrap" : "text-medical-text-primary"
             }`}
           >
-            {displayedContent}
+            {isUser ? displayedContent : <Markdown content={displayedContent} />}
             {streaming && displayedContent.length < (content?.length || 0) && (
               <motion.span
                 animate={{ opacity: [0.5, 1, 0.5] }}

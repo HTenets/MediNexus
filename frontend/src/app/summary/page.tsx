@@ -7,6 +7,7 @@ import { getConsultation, ApiError, ConsultationStatus } from "@/lib/api";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Button } from "@/components/ui/Button";
 import { CheckCircle, RefreshCw, AlertTriangle, ArrowLeft } from "lucide-react";
+import { InlineMarkdown } from "@/components/ui/Markdown";
 
 const AGENT_META: Record<string, { label: string; icon: any; color: string; bg: string }> = {
   triage: { label: "智能分诊", icon: CheckCircle, color: "text-medical-primary", bg: "bg-medical-primary-light" },
@@ -127,7 +128,7 @@ export default function SummaryPage() {
                       <div className="space-y-1">
                         {lines.map((l: string, j: number) => (
                           <div key={j} className="text-sm text-medical-text-secondary leading-relaxed">
-                            • {l}
+                            • <InlineMarkdown text={l} />
                           </div>
                         ))}
                       </div>
@@ -146,7 +147,7 @@ export default function SummaryPage() {
                       <div className="w-5 h-5 rounded-full bg-medical-accent-light flex items-center justify-center flex-shrink-0 mt-0.5">
                         <CheckCircle className="w-3 h-3 text-medical-accent" />
                       </div>
-                      <span className="text-sm text-medical-text-secondary">{item}</span>
+                      <span className="text-sm text-medical-text-secondary"><InlineMarkdown text={item} /></span>
                     </div>
                   ))
                 ) : (

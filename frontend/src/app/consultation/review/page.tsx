@@ -7,6 +7,7 @@ import { getConsultation, ApiError, ConsultationStatus } from "@/lib/api";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Button } from "@/components/ui/Button";
 import { AlertTriangle, RefreshCw, ShieldCheck, CheckCircle } from "lucide-react";
+import { InlineMarkdown } from "@/components/ui/Markdown";
 
 const AGENT_META: Record<string, { label: string; icon: any; color: string; bg: string }> = {
   triage: { label: "智能分诊", icon: ShieldCheck, color: "text-medical-primary", bg: "bg-medical-primary-light" },
@@ -111,7 +112,7 @@ export default function ReviewPage() {
                       {lines.map((line: string, j: number) => (
                         <div key={j} className="flex items-start gap-2">
                           <span className={`w-1.5 h-1.5 rounded-full mt-2 ${meta.color.replace("text-", "bg-")}`} />
-                          <span className="text-sm text-medical-text-secondary leading-relaxed">{line}</span>
+                          <span className="text-sm text-medical-text-secondary leading-relaxed"><InlineMarkdown text={line} /></span>
                         </div>
                       ))}
                     </div>
@@ -150,7 +151,7 @@ export default function ReviewPage() {
                     <div className="space-y-2">
                       {lines.map((l: string, i: number) => (
                         <div key={i} className="text-sm text-medical-text-secondary bg-gray-50 rounded-lg px-3 py-2">
-                          {l}
+                          <InlineMarkdown text={l} />
                         </div>
                       ))}
                     </div>
