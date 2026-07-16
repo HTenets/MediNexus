@@ -149,7 +149,10 @@ async function request<T>(
       }
       throw {
         code: response.status,
-        message: errorBody.message || `HTTP error ${response.status}`,
+        message:
+          (errorBody.detail as string | undefined) ||
+          errorBody.message ||
+          `HTTP error ${response.status}`,
         detail: errorBody.detail as string | undefined,
       } as ApiError;
     }

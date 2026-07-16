@@ -3,7 +3,7 @@
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.schemas.consultation import (
@@ -11,15 +11,12 @@ from app.schemas.consultation import (
     ConsultationStartResponse,
     ConsultationStatusResponse,
 )
-from orchestration.supervisor import SupervisorAgent
+from orchestration.supervisor import supervisor
 from orchestration.stream import StreamManager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# In-memory session store (Redis-backed in production)
-supervisor = SupervisorAgent()
 
 
 @router.post("", response_model=ConsultationStartResponse)
@@ -34,7 +31,7 @@ async def start_consultation(request: ConsultationStartRequest):
         patient_id=session.patient_id,
         status="started",
         current_agent=session.current_agent,
-        created_at=datetime.utcnow().isoformat(),
+        created_at=datetime.now(timezone.utc).isoformat(),
     )
 
 

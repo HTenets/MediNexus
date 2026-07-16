@@ -33,6 +33,16 @@ class TriageAgent(BaseAgent):
             # Fallback: keyword-based triage when no LLM is available
             result = self._keyword_triage(symptoms)
 
+        # Safety override: if the pre-process emergency guardrail flagged this
+        # input, force emergency urgency regardless of what the LLM/keyword
+        # triage concluded. The guardrail must never be silently ignored.
+        if context.get("_emergency_detected"):
+            result["urgency"] = "emergency"
+            if not result.get("department"):
+                result["department"] = "emergency"
+            etype = context.get("_emergency_type") or "GENERAL_EMERGENCY"
+            result["reason"] = f"安全护栏检测到紧急信号 ({etype})；" + result.get("reason", "")
+
         facts = [
             f"Patient symptoms: {symptoms}",
             f"Urgency: {result.get('urgency', 'routine')}", # urgency 紧迫性，routine常规，urgent紧急，emergency危急

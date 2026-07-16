@@ -68,9 +68,10 @@ class StreamManager:
     async def emit_agent_start(self, agent: str, metadata: dict[str, Any] | None = None):
         """Notify client that an agent has started processing."""
         self._current_agent = agent
+        from datetime import datetime, timezone
         await self.send_event(StreamEvent.AGENT_START, {
             "agent": agent,
-            "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             **(metadata or {}),
         })
 

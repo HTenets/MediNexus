@@ -15,7 +15,7 @@ from app.config import settings
 from app.middlewares.auth import auth_middleware
 from app.middlewares.rate_limit import rate_limit_middleware
 from llm.factory import create_llm_client
-from orchestration.supervisor import SupervisorAgent
+from orchestration.supervisor import supervisor
 from orchestration.stream import StreamManager
 
 # Build the LLM client once at startup. If no provider/key is configured the
@@ -24,9 +24,6 @@ llm_client = create_llm_client()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Global supervisor instance
-supervisor = SupervisorAgent()
 
 # Demo mode check
 IS_DEMO = settings.demo_mode or not settings.database_url
@@ -195,6 +192,13 @@ async def websocket_endpoint(
         session = await supervisor.create_session(session_id, f"patient_{session_id[:8]}")
 
     await stream.emit_info("欢迎使用医枢智能问诊。请描述您的症状。")
+
+    # Observability: make degraded (rule-based) mode explicit to the user
+    # instead of silently returning templated answers.
+    if llm_client is None:
+        await stream.emit_info(
+            "提示：当前未配置大模型，正在使用规则引擎降级模式，回复为模板内容。"
+        )
 
     try:
         while True:

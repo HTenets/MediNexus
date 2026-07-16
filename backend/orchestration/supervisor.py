@@ -7,6 +7,7 @@ shared across multiple Uvicorn workers.
 
 import json
 import logging
+from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
 
@@ -115,7 +116,7 @@ class SupervisorAgent:
                 await _redis.setex(
                     f"{_SESSION_KEY_PREFIX}{session.session_id}",
                     _SESSION_TTL,
-                    json.dumps(session.model_dump(), default=str),
+                    json.dumps(asdict(session), default=str),
                 )
             except Exception as e:
                 logger.warning("Redis session save failed: %s", e)
@@ -170,6 +171,30 @@ class SupervisorAgent:
         await self._persist_session(session)
         return manifest
 
+    def cleanup_expired(self) -> int:
+        """Remove in-memory sessions with no recent activity.
+
+        Redis-backed sessions expire automatically via TTL; this only prunes
+        the in-memory fallback store. Returns the number of sessions removed.
+        """
+        cutoff = datetime.now(timezone.utc).timestamp() - _SESSION_TTL
+        expired: list[str] = []
+        for sid, session in self._sessions.items():
+            last_ts = 0.0
+            if session.history:
+                raw = session.history[-1].get("timestamp", "")
+                try:
+                    last_ts = datetime.fromisoformat(raw).timestamp()
+                except (ValueError, TypeError):
+                    last_ts = 0.0
+            if last_ts < cutoff:
+                expired.append(sid)
+        for sid in expired:
+            del self._sessions[sid]
+        if expired:
+            logger.info("Cleaned up %d expired in-memory sessions", len(expired))
+        return len(expired)
+
     def session_to_graph_state(self, session: SessionState) -> GraphState:
         """Convert a SessionState to a LangGraph-compatible GraphState TypedDict."""
         return GraphState(
@@ -184,3 +209,11 @@ class SupervisorAgent:
             agent_output=None,
             error=None,
         )
+
+
+# ── Shared singleton ─────────────────────────────────────────────────────── #
+# A single SupervisorAgent instance shared across the WebSocket endpoint
+# (app.main) and the REST consultation API (app.api.consultation). This
+# ensures both see the SAME in-memory session store even when Redis is not
+# configured, so the review/summary pages can read the WS conversation.
+supervisor = SupervisorAgent()

@@ -44,6 +44,12 @@ def get_celery_app():
     return _celery_app
 
 
+# Module-level Celery instance required by the `celery -A workers.tasks` CLI
+# (the worker entrypoint). Without this attribute the worker fails to start
+# with "Module 'workers.tasks' has no attribute 'celery'".
+celery = get_celery_app()
+
+
 # ── Task definitions ─────────────────────────────────────────────────────── #
 
 async def send_followup_reminder(patient_id: str, message: str) -> dict[str, Any]:
@@ -89,8 +95,7 @@ async def cleanup_expired_sessions() -> dict[str, Any]:
     """
     logger.info("[CLEANUP] Cleaning expired sessions...")
     try:
-        from orchestration.supervisor import SupervisorAgent
-        supervisor = SupervisorAgent()
+        from orchestration.supervisor import supervisor
         count = supervisor.cleanup_expired()
         logger.info("[CLEANUP] Removed %d expired sessions", count)
         return {"cleaned": count}

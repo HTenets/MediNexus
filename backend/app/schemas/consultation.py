@@ -1,12 +1,12 @@
 """Consultation Pydantic schemas for request/response models."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Any
 
 
 class ConsultationStartRequest(BaseModel):
     patient_id: str | None = None
-    symptoms: str = Field("", min_length=1)
+    symptoms: str = ""
 
 
 class ConsultationStartResponse(BaseModel):
