@@ -1,6 +1,7 @@
 "use client";
 
 import { getToken } from "./auth";
+import { BASE_PATH } from "./config";
 
 export type WsEventType =
   | "agent_start"
@@ -41,7 +42,8 @@ function getWsBase(): string {
   if (envUrl) return envUrl;
 
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${window.location.host}`;
+  // 生产环境：连接与页面同源、且带上子路径前缀（Nginx 反代 /programs/medinexus/ws/ -> backend）
+  return `${proto}//${window.location.host}${BASE_PATH}`;
 }
 
 export class ConsultationSocket {

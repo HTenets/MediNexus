@@ -104,6 +104,9 @@ services:
     build:
       context: ../..
       dockerfile: infrastructure/docker/Dockerfile.frontend
+      args:
+        # 子路径部署前缀（默认 /programs/medinexus，可通过 .env 覆盖）
+        NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-/programs/medinexus}
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://47.80.10.180}
     depends_on:

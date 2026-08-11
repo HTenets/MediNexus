@@ -1,3 +1,5 @@
+import { BASE_PATH } from "./config";
+
 export interface User {
   id: string;
   name: string;
@@ -14,7 +16,7 @@ interface LoginResponse {
 
 export function login(email: string, password: string, role: 'patient' | 'doctor'): Promise<{ token: string; user: User }> {
   return new Promise((resolve, reject) => {
-    fetch('/api/v1/auth/login', {
+    fetch(`${BASE_PATH}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,7 +100,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   if (!refreshToken) return null;
 
   try {
-    const response = await fetch('/api/v1/auth/refresh', {
+    const response = await fetch(`${BASE_PATH}/api/v1/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),

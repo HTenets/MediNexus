@@ -1,6 +1,7 @@
 import { getToken, refreshAccessToken, logout } from "./auth";
+import { BASE_PATH } from "./config";
 
-const API_BASE = "/api/v1";
+const API_BASE = `${BASE_PATH}/api/v1`;
 
 /**
  * Handle a definitive 401 (token invalid and refresh failed): clear stale
@@ -11,8 +12,8 @@ const API_BASE = "/api/v1";
 function handleAuthFailure(): void {
   if (typeof window === "undefined") return;
   logout();
-  if (!window.location.pathname.startsWith("/login")) {
-    window.location.href = "/login";
+  if (!window.location.pathname.startsWith(`${BASE_PATH}/login`)) {
+    window.location.href = `${BASE_PATH}/login`;
   }
 }
 

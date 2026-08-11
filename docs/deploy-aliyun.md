@@ -246,6 +246,39 @@ bash scripts/deploy/deploy.sh -f
 | `-f, --full` | 完整部署流程 |
 | `-c, --clean` | 清理旧容器和镜像 |
 
+### 5.3 子路径部署说明（/programs/medinexus）
+
+当前部署已支持将应用挂载到**子路径**访问：
+
+- 访问地址：`http://htenets.top/programs/medinexus`（域名）或 `http://47.80.10.180/programs/medinexus`（IP）
+- **子路径专用**：根路径（`htenets.top/`）不再提供服务，返回 404
+- 前端使用 Next.js `basePath`，API（`/api/v1`）和 WebSocket（`/ws`）同样挂在子路径下，由 Nginx 剥离前缀后转发到后端
+
+**关键配置说明**：
+
+| 配置项 | 位置 | 说明 |
+|--------|------|------|
+| `NEXT_PUBLIC_BASE_PATH` | `scripts/deploy/.env.production` | 子路径前缀，默认 `/programs/medinexus`，修改后需重新构建 frontend 镜像 |
+| Nginx 路由 | `infrastructure/nginx/nginx.conf`（HTTP）或 `scripts/deploy/nginx.conf`（HTTPS） | 子路径下的页面/API/WS 转发规则 |
+| `MEDINEXUS_ALLOWED_ORIGINS` | `.env` | 已加入 `http(s)://htenets.top` |
+
+**修改子路径名称**：如想改用其它路径（例如 `/programs/mx`），需要同时修改：
+
+1. `scripts/deploy/.env.production` 中的 `NEXT_PUBLIC_BASE_PATH`
+2. `infrastructure/nginx/nginx.conf`（或 `scripts/deploy/nginx.conf`）中所有 `/programs/medinexus` 的 location
+
+**重新部署生效**：
+
+```bash
+# 在服务器上重新构建前端镜像和 nginx 镜像并重启
+bash scripts/deploy/deploy.sh -b -r
+# 或手动：
+docker-compose build frontend nginx
+docker-compose up -d
+```
+
+> **注意**：`NEXT_PUBLIC_BASE_PATH` 是构建时注入的，只改 `.env` 不重新构建 frontend 镜像不会生效。
+
 ## 6. SSL证书配置（可选）
 
 > **注意**：当前部署默认使用HTTP协议。如需启用HTTPS，需要先注册域名并配置DNS解析。Let's Encrypt不支持为裸IP地址颁发证书。
@@ -520,12 +553,14 @@ systemctl restart docker
 
 | 服务 | 地址 |
 |------|------|
-| 前端页面 | http://47.80.10.180 |
-| API文档 | http://47.80.10.180/api/v1/docs |
-| 健康检查 | http://47.80.10.180/health |
+| 前端页面 | http://htenets.top/programs/medinexus 或 http://47.80.10.180/programs/medinexus |
+| API文档 | http://htenets.top/programs/medinexus/api/v1/docs |
+| 健康检查 | http://htenets.top/programs/medinexus/health |
 | PostgreSQL | localhost:5432 (内部) |
 | Redis | localhost:6379 (内部) |
 | Qdrant | localhost:6333 (内部) |
+
+> 应用部署在子路径 `/programs/medinexus` 下，根路径（`htenets.top/`）返回 404。
 
 ## 14. 安全建议
 

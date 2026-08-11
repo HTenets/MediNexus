@@ -8,6 +8,11 @@ RUN npm install --production=false
 
 # Copy source and build
 COPY frontend/ .
+
+# 子路径部署前缀（构建时注入，客户端代码会在构建期内联该值）
+ARG NEXT_PUBLIC_BASE_PATH=/programs/medinexus
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+
 RUN npm run build
 
 # Create a non-root user for the runtime stage
