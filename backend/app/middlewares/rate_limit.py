@@ -45,7 +45,13 @@ async def rate_limit_middleware(request: Request, call_next):
     if request.url.path.endswith("/health"):
         return await call_next(request)
 
-    client_ip = request.client.host if request.client else "unknown"
+    # Behind the nginx reverse proxy, request.client.host is the nginx
+    # container IP, which would make ALL users share a single rate-limit
+    # bucket. nginx sets X-Real-IP to the true remote address — use it when
+    # present, otherwise fall back to the direct-connection client host.
+    client_ip = request.headers.get("X-Real-IP")
+    if not client_ip:
+        client_ip = request.client.host if request.client else "unknown"
     now = time.time()
 
     # Periodic cleanup

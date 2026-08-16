@@ -33,19 +33,13 @@ upload_code() {
     ssh root@47.80.10.180 "cd $DEPLOY_DIR && git pull origin main"
 
     echo ""
-    echo "2. 复制部署配置文件..."
-    ssh root@47.80.10.180 "cp $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml $DEPLOY_DIR/docker-compose.yml"
-    ssh root@47.80.10.180 "cp $DEPLOY_DIR/scripts/deploy/.env.production $DEPLOY_DIR/.env"
-    ssh root@47.80.10.180 "cp $DEPLOY_DIR/scripts/deploy/nginx.conf $DEPLOY_DIR/infrastructure/nginx/nginx.conf"
-
-    echo ""
     echo "✅ 代码更新完成！"
 }
 
 build_images() {
     echo ""
     echo "构建 Docker 镜像..."
-    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml build --no-cache"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker compose --env-file $DEPLOY_DIR/scripts/deploy/.env.production -f $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml build --no-cache"
     echo ""
     echo "✅ 镜像构建完成！"
 }
@@ -53,19 +47,30 @@ build_images() {
 start_services() {
     echo ""
     echo "启动服务..."
-    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml up -d"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker compose --env-file $DEPLOY_DIR/scripts/deploy/.env.production -f $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml up -d"
     echo ""
     echo "✅ 服务启动完成！"
     echo ""
     echo "等待服务初始化..."
     sleep 10
-    ssh root@47.80.10.180 "curl -s http://localhost:80/health || echo '服务正在启动中，请稍后检查'"
+
+    echo ""
+    echo "校验 nginx 配置..."
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker compose -f $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml exec -T nginx nginx -t" || {
+        echo "❌ nginx 配置校验失败，请检查日志"
+        return 1
+    }
+
+    echo ""
+    echo "执行部署后冒烟测试..."
+    ssh root@47.80.10.180 "curl -sf http://localhost:80/programs/medinexus/health > /dev/null && echo '✅ health OK' || echo '⚠ health 检查失败（可能仍在启动）'"
+    ssh root@47.80.10.180 "curl -sf http://localhost:80/programs/medinexus/login > /dev/null && echo '✅ login 页面 OK' || echo '⚠ login 页面检查失败'"
 }
 
 stop_services() {
     echo ""
     echo "停止服务..."
-    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml down"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker compose -f $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml down"
     echo ""
     echo "✅ 服务已停止！"
 }
@@ -73,7 +78,7 @@ stop_services() {
 restart_services() {
     echo ""
     echo "重启服务..."
-    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml restart"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker compose -f $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml restart"
     echo ""
     echo "✅ 服务重启完成！"
 }
@@ -81,7 +86,7 @@ restart_services() {
 view_logs() {
     echo ""
     echo "查看服务日志..."
-    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker-compose -f $DEPLOY_DIR/docker-compose.yml logs -f"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker compose -f $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml logs -f"
 }
 
 cleanup() {

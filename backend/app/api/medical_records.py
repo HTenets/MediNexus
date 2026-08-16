@@ -3,8 +3,10 @@ import uuid
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from app.schemas.consultation import ConsultationHistoryResponse
+from app.core.auth import get_current_user
+from app.api.patients import _patients as _patient_store
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +14,17 @@ router = APIRouter()
 
 # In-memory store (PostgreSQL in production)
 _records: dict[str, list[dict]] = {}
+
+
+def _authorize_patient(patient_id: str, user_id: str) -> None:
+    """Reject access to records of a patient owned by another user.
+
+    Unowned patients (seeded demo data) are public. Owned patients require
+    a matching user_id, mirroring the ownership rule in patients.py.
+    """
+    patient = _patient_store.get(patient_id)
+    if patient and patient.get("owner_id") and patient.get("owner_id") != user_id:
+        raise HTTPException(status_code=403, detail="无权访问该患者")
 
 # Seed demo records
 _demo_records = [
@@ -60,18 +73,20 @@ for r in _demo_records:
 
 
 @router.get("/{record_id}")
-async def get_medical_record(record_id: str):
+async def get_medical_record(record_id: str, user_id: str = Depends(get_current_user)):
     """Get a single medical record by ID."""
     for pid, items in _records.items():
         for r in items:
             if r["id"] == record_id:
+                _authorize_patient(pid, user_id)
                 return r
     raise HTTPException(status_code=404, detail=f"病历 {record_id} 不存在")
 
 
 @router.get("/patient/{patient_id}", response_model=ConsultationHistoryResponse)
-async def list_patient_records(patient_id: str):
+async def list_patient_records(patient_id: str, user_id: str = Depends(get_current_user)):
     """List all records for a patient."""
+    _authorize_patient(patient_id, user_id)
     items = _records.get(patient_id, [])
     items_sorted = sorted(items, key=lambda x: x.get("date", ""), reverse=True)
     return ConsultationHistoryResponse(
@@ -82,8 +97,13 @@ async def list_patient_records(patient_id: str):
 
 
 @router.post("/patient/{patient_id}", status_code=201)
-async def create_medical_record(patient_id: str, data: dict):
+async def create_medical_record(
+    patient_id: str,
+    data: dict,
+    user_id: str = Depends(get_current_user),
+):
     """Create a new medical record for a patient."""
+    _authorize_patient(patient_id, user_id)
     record_id = f"record_{uuid.uuid4().hex[:8]}"
     record = {
         "id": record_id,

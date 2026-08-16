@@ -83,11 +83,12 @@ class SupervisorAgent:
 
         return "complete"
 
-    async def create_session(self, session_id: str, patient_id: str) -> SessionState:
+    async def create_session(self, session_id: str, patient_id: str, owner_id: str | None = None) -> SessionState:
         """Create a new consultation session."""
         session = SessionState(
             session_id=session_id,
             patient_id=patient_id,
+            owner_id=owner_id,
             current_agent="triage",
         )
         self._sessions[session_id] = session
@@ -151,7 +152,10 @@ class SupervisorAgent:
         next_agent = await self.route(session, session.context)
         session.current_agent = next_agent
         if next_agent == "emergency_protocol":
-            session.current_agent = "triage"
+            # Emergency is a terminal state: the caller (main.py) emits the
+            # "拨打 120" guidance and stops further conversation. Do NOT reset
+            # current_agent back to triage here — that made every downstream
+            # emergency_protocol check unreachable and let users keep chatting.
             manifest.risk_flags.insert(0, "EMERGENCY_PROTOCOL_ACTIVATED")
 
         # Add to history

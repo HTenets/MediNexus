@@ -189,7 +189,14 @@ async def websocket_endpoint(
 
     session = await supervisor.get_session(session_id)
     if not session:
-        session = await supervisor.create_session(session_id, f"patient_{session_id[:8]}")
+        session = await supervisor.create_session(
+            session_id, f"patient_{session_id[:8]}", owner_id=user_id
+        )
+    elif session.owner_id and session.owner_id != user_id:
+        # Session belongs to another user — reject to prevent unauthorized
+        # access to another patient's consultation history (IDOR).
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
 
     await stream.emit_info("欢迎使用医枢智能问诊。请描述您的症状。")
 
@@ -239,10 +246,16 @@ async def websocket_endpoint(
             # advances one stage per message (triage → doctor → review →
             # followup) so the user interacts with each agent in turn.
             if session.current_agent in ("complete", "emergency_protocol"):
-                await stream.emit_info("问诊已结束，如需重新开始请新建会话。")
+                if session.current_agent == "emergency_protocol":
+                    await stream.emit_info("紧急预案已启动，请立即拨打 120 或前往最近的急诊。")
+                else:
+                    await stream.emit_info("问诊已结束，如需重新开始请新建会话。")
                 continue
 
             await _run_agent_stream(session, stream, content, llm_client)
+
+            if session.current_agent == "emergency_protocol":
+                await stream.emit_info("紧急预案已启动，请立即拨打 120 或前往最近的急诊。")
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected: %s", session_id)

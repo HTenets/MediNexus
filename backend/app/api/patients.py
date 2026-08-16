@@ -59,6 +59,17 @@ def _compute_age(dob: date | None) -> int | None:
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 
+def _authorize(record: dict | None, user_id: str) -> dict:
+    """Enforce ownership: unowned (seeded) records are public, owned records
+    require a matching user_id. Raises 404/403 otherwise."""
+    if not record:
+        raise HTTPException(status_code=404, detail="患者不存在")
+    owner = record.get("owner_id")
+    if owner and owner != user_id:
+        raise HTTPException(status_code=403, detail="无权访问该患者")
+    return record
+
+
 def _to_response(data: dict) -> PatientResponse:
     return PatientResponse(
         id=data["id"],
@@ -82,8 +93,15 @@ async def list_patients(
     page_size: int = 20,
     user_id: str = Depends(get_current_user),
 ):
-    """List patients with optional search."""
-    items = list(_patients.values())
+    """List patients with optional search.
+
+    Ownership: seeded demo patients (no owner) are visible to everyone;
+    user-created patients (with owner_id) are visible only to their creator.
+    """
+    items = [
+        p for p in _patients.values()
+        if not p.get("owner_id") or p.get("owner_id") == user_id
+    ]
     if search:
         search_lower = search.lower()
         items = [p for p in items if search_lower in p["name"].lower()]
@@ -121,6 +139,7 @@ async def create_patient(
         "created_at": now,
         "last_visit": None,
         "status": "active",
+        "owner_id": user_id,
     }
     _patients[patient_id] = record
     logger.info("Created patient: %s (by user=%s)", patient_id, user_id)
@@ -133,9 +152,7 @@ async def get_patient(
     user_id: str = Depends(get_current_user),
 ):
     """Get patient details by ID."""
-    record = _patients.get(patient_id)
-    if not record:
-        raise HTTPException(status_code=404, detail=f"患者 {patient_id} 不存在")
+    record = _authorize(_patients.get(patient_id), user_id)
     return _to_response(record)
 
 
@@ -146,9 +163,7 @@ async def update_patient(
     user_id: str = Depends(get_current_user),
 ):
     """Update patient information."""
-    record = _patients.get(patient_id)
-    if not record:
-        raise HTTPException(status_code=404, detail=f"患者 {patient_id} 不存在")
+    record = _authorize(_patients.get(patient_id), user_id)
 
     update_data = data.model_dump(exclude_unset=True)
     record.update(update_data)
@@ -163,8 +178,7 @@ async def delete_patient(
     user_id: str = Depends(get_current_user),
 ):
     """Delete a patient record."""
-    if patient_id not in _patients:
-        raise HTTPException(status_code=404, detail=f"患者 {patient_id} 不存在")
+    _authorize(_patients.get(patient_id), user_id)
     del _patients[patient_id]
     logger.info("Deleted patient: %s (by user=%s)", patient_id, user_id)
     return {"message": f"患者 {patient_id} 已删除"}

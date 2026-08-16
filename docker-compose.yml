@@ -50,8 +50,12 @@ services:
       MEDINEXUS_LLM_API_KEY: ${MEDINEXUS_LLM_API_KEY:-}
       MEDINEXUS_LLM_MODEL: ${MEDINEXUS_LLM_MODEL:-}
       MEDINEXUS_LLM_BASE_URL: ${MEDINEXUS_LLM_BASE_URL:-}
-      MEDINEXUS_OLLAMA_BASE_URL: ${MEDINEXUS_OLLAMA_BASE_URL:-http://localhost:11434}
+      MEDINEXUS_OLLAMA_BASE_URL: ${MEDINEXUS_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       MEDINEXUS_OLLAMA_MODEL: ${MEDINEXUS_OLLAMA_MODEL:-qwen2.5:14b}
+    extra_hosts:
+      # Allow the container to reach a host-machine Ollama at host.docker.internal
+      # (localhost inside the container points at the container itself).
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
