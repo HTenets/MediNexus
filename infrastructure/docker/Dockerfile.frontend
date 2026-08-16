@@ -13,6 +13,11 @@ COPY frontend/ .
 ARG NEXT_PUBLIC_BASE_PATH=/programs/medinexus
 ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 
+# 限制 Node 构建堆内存，避免在低配服务器上与运行中容器抢内存导致 swap 卡死
+ENV NODE_OPTIONS=--max-old-space-size=2048
+# 关闭 Next.js 遥测，避免构建时发起外网请求
+ENV NEXT_TELEMETRY_DISABLED=1
+
 RUN npm run build
 
 # Create a non-root user for the runtime stage

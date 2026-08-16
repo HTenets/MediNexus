@@ -12,8 +12,9 @@
 </p>
 
 <p align="center">
-  <!-- MediNexus — 智能问诊主界面 -->
-  <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Modern%20medical%20AI%20consultation%20dashboard%20with%20a%20chat%20interface%20showing%20multi-agent%20diagnosis%20pipeline%2C%20gradient%20blue%20and%20green%20UI%2C%20sleek%20glassmorphism%20design%2C%20dark%20text%20on%20light%20background%2C%20medical%20icons%2C%20sidebar%20with%20navigation%2C%20professional%20and%20clean%20aesthetic&image_size=landscape_16_9" alt="MediNexus 智能问诊界面" width="80%">
+  <img src="docs/images/consultation-ui.png" alt="MediNexus 智能问诊界面" width="80%">
+  <br>
+  <sub>👆 请替换为截图：打开 http://htenets.top/programs/medinexus 进入问诊页面截图后保存到 <code>docs/images/consultation-ui.png</code></sub>
 </p>
 
 ---
@@ -55,10 +56,6 @@
 - **智能路由** — SupervisorAgent 根据分诊结果、紧急程度自动路由到对应 Agent
 - **流式输出** — 基于 WebSocket 的实时流式传输，对话体验流畅自然
 
-<p align="center">
-  <!-- 多智能体流水线图示 -->
-  <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=A%20flowchart%20diagram%20showing%20a%20multi-agent%20pipeline%20for%20medical%20consultation%3A%20User%20%22%22%20Triage%20%22%22%20Doctor%20%22%22%20Review%20%22%22%20Followup%2C%20with%20arrows%20connecting%20each%20stage%2C%20clean%20minimalist%20design%20in%20blue%20and%20green%20colors%2C%20professional%20medical%20style&image_size=landscape_16_9" alt="多智能体流水线" width="80%">
-</p>
 
 ### 2. 分层记忆系统
 
@@ -105,8 +102,9 @@ Skill 自动匹配症状，支持自定义扩展，可独立注入知识库上�
 ### 6. 现代化前端设计
 
 <p align="center">
-  <!-- 前端界面多图展示 -->
-  <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Modern%20medical%20web%20application%20screenshot%20showing%20a%20landing%20page%20with%20hero%20section%20titled%20%22%20Intelligent%20Triage%20Precise%20Diagnosis%22%2C%20floating%20gradient%20backgrounds%2C%20glassmorphism%20cards%2C%20feature%20sections%20with%20icons%2C%20clean%20white%20and%20blue%20design%2C%20responsive%20layout&image_size=landscape_16_9" alt="首页展示" width="80%">
+  <img src="docs/images/homepage.png" alt="首页展示" width="80%">
+  <br>
+  <sub>👆 请替换为截图：打开 http://htenets.top/programs/medinexus 首页截图保存到 <code>docs/images/homepage.png</code></sub>
 </p>
 
 - **Next.js 14 + React 18 + Tailwind CSS 3** — App Router 架构，全栈现代框架
