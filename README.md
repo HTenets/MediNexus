@@ -12,9 +12,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/consultation-ui.png" alt="MediNexus 智能问诊界面" width="80%">
+  <img src="docs/images/homepage.png" alt="MediNexus 宣传页面" width="80%">
   <br>
-  <sub>👆 请替换为截图：打开 http://htenets.top/programs/medinexus 进入问诊页面截图后保存到 <code>docs/images/consultation-ui.png</code></sub>
 </p>
 
 ---
@@ -102,9 +101,8 @@ Skill 自动匹配症状，支持自定义扩展，可独立注入知识库上�
 ### 6. 现代化前端设计
 
 <p align="center">
-  <img src="docs/images/homepage.png" alt="首页展示" width="80%">
+  <img src="docs/images/consultation-ui.png" alt="智能问诊界面" width="80%">
   <br>
-  <sub>👆 请替换为截图：打开 http://htenets.top/programs/medinexus 首页截图保存到 <code>docs/images/homepage.png</code></sub>
 </p>
 
 - **Next.js 14 + React 18 + Tailwind CSS 3** — App Router 架构，全栈现代框架
