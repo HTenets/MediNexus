@@ -33,4 +33,4 @@ dist/
 build/
 
 # 
-docs/历年*
+self_docs/*
