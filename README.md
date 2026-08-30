@@ -1,7 +1,7 @@
 # MediNexus / 医枢 — 开源多智能体医疗诊断平台
 
 <p align="center">
-  <a href="https://github.com/HTenets/MediNexus"><img src="https://img.shields.io/badge/版本-v0.1.0-blue" alt="版本"></a>
+  <a href="https://github.com/HTenets/MediNexus"><img src="https://img.shields.io/badge/版本-v0.1.1-blue" alt="版本"></a>
   <a href="https://github.com/HTenets/MediNexus/blob/main/LICENSE"><img src="https://img.shields.io/badge/许可证-Apache%202.0-green" alt="许可证"></a>
   <a href="https://github.com/HTenets/MediNexus"><img src="https://img.shields.io/github/stars/HTenets/MediNexus?style=social" alt="Stars"></a>
   <a href="https://github.com/HTenets/MediNexus/commits/main"><img src="https://img.shields.io/badge/状态-开发中-orange" alt="状态"></a>
@@ -47,26 +47,33 @@
 
 ```
 用户 → TriageAgent → DoctorAgent (+ Skill) → ReviewAgent → FollowupAgent → 输出
-                         ↕
-                  CoordinatorAgent（多科室会诊）
 ```
 
-- **LangGraph 状态图驱动** — 每个 Agent 独立运行，通过 `HandoverManifest` 标准协议交接
-- **智能路由** — SupervisorAgent 根据分诊结果、紧急程度自动路由到对应 Agent
-- **流式输出** — 基于 WebSocket 的实时流式传输，对话体验流畅自然
+- **状态机路由** — `SupervisorAgent` 根据分诊结果、紧急程度与上下文在 Agent 间路由；
+  每个 Agent 独立运行，通过 `HandoverManifest` 标准协议交接
+- **真流式输出** — WebSocket 直连 LLM 的 `chat_stream`，逐 token 下发；
+  无 LLM 时整段下发，不做"假打字"模拟
+- **患者口述渲染** — 结构化的 `HandoverManifest` 会经 LLM 渲染为通俗段落后再流式下发
+  （`MEDINEXUS_STREAM_NARRATIVE=false` 可关闭，省下每阶段一次额外调用）
+
+> **CoordinatorAgent（多科室会诊）已实现但尚未接线**：其触发词（头痛、发热、胸闷）
+> 过于宽泛，直接启用会把绝大多数日常问诊引入尚无专科会诊能力的多科分支。
+> 接线计划见 [v0.1.1 路线图](docs/plan/v0.1.1-plan.md)。
 
 
 ### 2. 分层记忆系统
 
-基于 **Mem0** 架构的三层记忆存储，实现跨会话的智能健康档案：
+参照 Mem0 思路自研的三层记忆（**未依赖 Mem0 库**），实现跨会话的智能健康档案：
 
-| 记忆层次 | 存储介质 | 功能 |
-|---------|---------|------|
-| **Working Memory** | Redis（TTL 过期） | 当前会话短期状态 |
-| **Episodic Memory** | PostgreSQL + pgvector | 历史就诊/问诊记录 |
-| **Semantic Memory** | PostgreSQL + pgvector | 患者画像（过敏史、慢性病、用药禁忌） |
+| 记忆层次 | 有 Redis / 数据库时 | 无外部依赖时 | 功能 |
+|---------|------------------|-------------|------|
+| **Working Memory** | Redis（TTL 过期） | 进程内字典 | 当前会话短期状态 |
+| **Episodic Memory** | `consultations` 表 | 进程内列表 | 历史就诊/问诊记录 |
+| **Semantic Memory** | `patients` 表 | 进程内字典 | 患者画像（过敏史、既往病史） |
 
-- 复诊时自动加载历史档案，无缝衔接
+- 复诊时自动把患者档案与既往记录注入 Agent 上下文，无需重复陈述
+- 会话结束（`complete` / `emergency_protocol`）时自动归档为本轮 Episode
+- 每一层都优雅降级：记忆故障只记录日志，绝不阻断问诊
 - PII 脱敏处理，保障患者隐私安全
 
 ### 3. 安全护栏系统
@@ -95,8 +102,10 @@ Skill 自动匹配症状，支持自定义扩展，可独立注入知识库上�
 
 - 三源知识库：临床病例（0.8权重）、医学理论（0.6权重）、最新论文（0.3权重）
 - RRF + Z-score 融合排序
-- BM25 全文检索作为向量库离线降级
-- 可选知识图谱增强
+- **默认走 BM25 全文检索**（内置知识库，零外部依赖）；配置 `MEDINEXUS_QDRANT_URL`
+  且可用嵌入服务时切换到向量检索，BM25 自动作为降级链路
+- 知识图谱（症状→疾病）增强召回
+- 通过 `GET /api/v1/knowledge/search` 对外提供检索能力
 
 ### 6. 现代化前端设计
 
@@ -132,17 +141,45 @@ Skill 自动匹配症状，支持自定义扩展，可独立注入知识库上�
 
 ---
 
+## 实现状态
+
+本表用于避免"宣传与实物不符"。✅ = 真实可用；🚧 = 代码存在但运行时不参与；📌 = 规划中。
+
+| 能力 | 状态 | 说明 |
+|------|------|------|
+| 四 Agent 问诊链路（分诊→诊断→复核→随访） | ✅ | LLM 模式 + 规则降级双通道 |
+| PII 脱敏 / 紧急检测护栏 | ✅ | 在 Agent 前置钩子中强制执行 |
+| JWT 签发 / 刷新 / 注册登录 | ✅ | bcrypt 哈希；刷新端点已放行 |
+| 患者 / 病历 / 会话持久化 | ✅ | PostgreSQL + Alembic 迁移；无库时内存降级 |
+| 分层记忆（working / episodic / semantic） | ✅ | 已注入 Agent 上下文，复诊自动带出档案 |
+| RAG 多源检索 + 知识图谱 | ✅ | BM25 默认路由，Qdrant 可选；`ReviewAgent` 独立检索 |
+| 真流式 WebSocket 输出 | ✅ | 直连 LLM `chat_stream` |
+| 专科 Skill 系统（内/皮肤/耳鼻喉/心理） | ✅ | 按症状与科室自动匹配 |
+| `/consultation/analysis` 知识源分析 | ✅ | 接真实检索接口 |
+| CoordinatorAgent 多科室会诊 | 🚧 | 已实现并有测试，但**未接入路由**（触发词过宽） |
+| 数字孪生 3D 可视化 | 📌 | 现为 CSS 动画占位；排入 v0.2.0 |
+| 可穿戴设备同步（心率/睡眠/步数） | 📌 | 界面已标注"尚未接入" |
+| 报告上传与自动解析 | 📌 | 上传页为静态原型，未接后端 |
+| 随访计划与预约 | 📌 | 页面已改为展示真实医嘱，不做虚假排期 |
+| LangGraph 状态图编排 | — | 已移除：与 `SupervisorAgent` 重复且从未被调用 |
+| Mem0 库 | — | 未采用：三层记忆为自研实现 |
+| Celery 异步任务 | 🚧 | 任务已定义但无调用方，未随应用启动 |
+| 实名认证（IdentityVerifier） | 🚧 | 有实现与测试，未接入流水线 |
+
+---
+
 ## 技术栈
 
 | 层级 | 技术 | 用途 |
 |------|------|------|
 | **后端框架** | FastAPI + Python 3.12+ | REST API + WebSocket |
-| **Agent 编排** | LangGraph | 状态图驱动多 Agent 流水线 |
-| **数据库** | PostgreSQL 17 + pgvector | 主存储 + 向量检索 |
-| **向量存储** | Qdrant | 知识库语义检索 |
-| **缓存/会话** | Redis 7 | 会话状态 + 工作记忆 |
-| **记忆系统** | Mem0 架构 | 三层分层记忆存储 |
-| **异步任务** | Celery | 后台任务调度 |
+| **Agent 编排** | 自研 `SupervisorAgent` 状态机 | 会话管理 + Agent 路由 + 记忆/RAG 注入 |
+| **数据库** | PostgreSQL 17（SQLAlchemy 2.0 异步 + Alembic） | 患者 / 病历 / 会话 / 用户 |
+| **向量存储** | Qdrant（可选） | 知识库语义检索 |
+| **全文检索** | 内置 BM25（默认检索路径，零依赖） | 知识库检索与降级链路 |
+| **缓存/会话** | Redis 7（可选） | 会话状态 + 工作记忆 |
+| **记忆系统** | 自研三层（working / episodic / semantic） | 跨会话患者档案 |
+| **密码哈希** | bcrypt（直接使用，不经 passlib） | 用户口令存储 |
 | **前端框架** | Next.js 14 + React 18 | App Router 全栈框架 |
 | **UI 组件** | shadcn/ui + Tailwind CSS 3 | 医疗级设计系统 |
 | **动画** | framer-motion | 流畅交互动画 |
@@ -195,6 +232,20 @@ MEDINEXUS_OLLAMA_BASE_URL=http://localhost:11434
 MEDINEXUS_OLLAMA_MODEL=qwen2.5:14b
 ```
 
+所有组件均可省略：`DATABASE_URL` / `REDIS_URL` / `QDRANT_URL` 缺省时，
+系统分别降级为进程内存储与 BM25 检索，仍是一条完整可用的链路。
+
+其他可选变量：
+
+| 变量 | 默认 | 说明 |
+|------|------|------|
+| `MEDINEXUS_STREAM_NARRATIVE` | `true` | 用 LLM 流式渲染通俗口述（每阶段多一次调用） |
+| `MEDINEXUS_EMBEDDING_PROVIDER` | `auto` | `auto` / `ollama` / `openai` / `none` |
+| `MEDINEXUS_EMBEDDING_MODEL` | 跟随 LLM | 嵌入模型名 |
+| `MEDINEXUS_EMBEDDING_BASE_URL` | 跟随 provider | 嵌入服务地址 |
+| `MEDINEXUS_EMBEDDING_API_KEY` | 空 | 嵌入服务密钥 |
+| `MEDINEXUS_EMBEDDING_DIM` | 按 provider 推断 | 向量维度，需与 Qdrant collection 一致 |
+
 ---
 
 ## 项目结构
@@ -215,18 +266,23 @@ MediNexus/
 │   │   ├── pii_sanitizer.py # PII 脱敏
 │   │   └── emergency_detector.py  # 紧急信号检测
 │   ├── knowledge/           # 知识库 & RAG
+│   │   ├── factory.py       # 检索栈装配（BM25 / Qdrant / 知识图谱）
 │   │   ├── rag.py           # 多源检索增强生成
-│   │   ├── retriever.py     # 检索器
-│   │   └── graph.py         # 知识图谱
+│   │   ├── retriever.py     # 检索器（RRF + Z-score 融合）
+│   │   ├── bm25_fallback.py # BM25 全文检索（默认路径）
+│   │   └── graph/           # 知识图谱
 │   ├── memory/              # 记忆系统
-│   │   ├── manager.py       # 记忆管理器
-│   │   ├── working.py       # 工作记忆（Redis）
+│   │   ├── manager.py       # 记忆管理器（三层门面）
+│   │   ├── working.py       # 工作记忆（Redis / 进程内）
+│   │   ├── _redis.py        # Redis 惰性访问器
 │   │   └── stores/          # 情景/语义记忆存储
 │   ├── llm/                 # LLM 客户端
 │   │   └── providers/       # Ollama / OpenAI / Anthropic
 │   └── orchestration/       # 编排层
-│       ├── supervisor.py    # 会话管理 & Agent 路由
-│       └── stream.py        # WebSocket 流式传输
+│       ├── supervisor.py    # 会话管理 & Agent 路由 & 记忆/RAG 注入
+│       ├── narrative.py     # 结构化结果 → 患者口述（真流式）
+│       ├── state.py         # 会话状态
+│       └── stream.py        # WebSocket 事件封装
 ├── frontend/                # Next.js 前端
 │   └── src/
 │       ├── app/             # 页面路由
@@ -289,9 +345,7 @@ MediNexus/
 
 | 文档 | 说明 |
 |------|------|
-| [架构设计](docs/architecture.md) | 系统架构与核心流程 |
-| [Agent 设计](docs/agent-design.md) | 多智能体系统设计详解 |
-| [API 参考](docs/api-reference.md) | REST API 与 WebSocket 协议 |
+| [架构设计](docs/architecture.md) | 系统架构与核心流程（v0.1.1） |
 | [部署指南](docs/deploy-aliyun.md) | 阿里云生产环境部署 |
 | [Vercel 部署](docs/deploy-vercel-render.md) | 免费云平台部署方案 |
 | [Docker 快速入门](docs/docker-quickstart.md) | Docker 零基础教程 |

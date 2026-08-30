@@ -1,7 +1,12 @@
-"""Database initialization script."""
+"""Database initialization script — creates all tables directly (no alembic).
+
+Prefer `alembic upgrade head` for environments with migration history;
+this script remains for quick local bootstrap.
+"""
 import asyncio
+
 from app.core.database import engine
-from app.models.patient import Base
+from app.models import Base  # imports register all tables
 
 
 async def init():

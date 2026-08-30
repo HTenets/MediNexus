@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, DateTime, JSON
 from datetime import datetime, timezone
-from .patient import Base
+from .base import Base
 
 
 class AuditLog(Base):

@@ -57,6 +57,8 @@ export interface Patient {
   created_at: string;
   last_visit?: string;
   status: string;
+  /** null for seeded demo patients; set for records the current user owns. */
+  owner_id?: string | null;
 }
 
 export interface PatientListResponse {
@@ -111,10 +113,17 @@ export interface ConsultationStartResponse {
   created_at: string;
 }
 
+export interface DemoCredentials {
+  patient: { email: string; password: string };
+  doctor: { email: string; password: string };
+}
+
 export interface HealthCheckResponse {
   status: string;
   mode: string;
+  database?: string;
   version: string;
+  demo_credentials?: DemoCredentials;
 }
 
 function getAuthHeaders(): HeadersInit {
@@ -224,6 +233,11 @@ export async function getPatient(patientId: string): Promise<Patient> {
   return request(`/patients/${patientId}`);
 }
 
+/** The patient profile owned by the current user. 404 when not yet created. */
+export async function getMyProfile(): Promise<Patient> {
+  return request(`/patients/me`);
+}
+
 export async function createPatient(data: PatientCreate): Promise<Patient> {
   return request("/patients", {
     method: "POST",
@@ -261,4 +275,31 @@ export async function createRecord(patientId: string, data: Partial<MedicalRecor
 
 export async function healthCheck(): Promise<HealthCheckResponse> {
   return request("/health");
+}
+
+export interface KnowledgeItem {
+  title: string;
+  source: string;
+  journal?: string | null;
+  content: string;
+  score: number;
+  confidence: number;
+}
+
+export interface KnowledgeSearchResponse {
+  query: string;
+  route: "bm25" | "vector";
+  activated_sources: string[];
+  total: number;
+  cases: KnowledgeItem[];
+  theory: KnowledgeItem[];
+  papers: KnowledgeItem[];
+}
+
+export async function searchKnowledge(
+  query: string,
+  topK = 5
+): Promise<KnowledgeSearchResponse> {
+  const params = new URLSearchParams({ q: query, top_k: String(topK) });
+  return request(`/knowledge/search?${params.toString()}`);
 }

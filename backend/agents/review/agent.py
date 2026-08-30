@@ -83,6 +83,10 @@ class ReviewAgent(BaseAgent):
         user_msg = f"## 患者主诉\n{symptoms}\n"
         if diagnosis_context:
             user_msg += f"\n## 医生诊断与方案\n{json.dumps(diagnosis_context, ensure_ascii=False, indent=2)}\n"
+        # Patient profile / past visits — allergy and condition checks are only
+        # meaningful with this context (e.g. drug–allergy contraindications).
+        if context.get("patient_memory"):
+            user_msg += f"\n## 患者档案与既往记录\n{context['patient_memory']}\n"
         if kb_context:
             user_msg += f"\n## 临床知识库参考\n{kb_context[:1200]}\n"
         if risk_flags:

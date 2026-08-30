@@ -6,7 +6,8 @@ import { useState, useEffect } from "react";
 import AppShell from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/hooks/useAuth";
-import { listRecords, getPatient, ApiError } from "@/lib/api";
+import { usePatientProfile } from "@/hooks/usePatient";
+import { listRecords, ApiError } from "@/lib/api";
 import { LoadingState } from "@/components/ui/LoadingState";
 import {
   User,
@@ -75,40 +76,6 @@ const analysisModes = [
   { value: "deep", label: "深度", icon: Brain, desc: "深度分析，精准诊断" },
 ];
 
-const devices = [
-  {
-    name: "Apple Watch Series 9",
-    type: "智能手表",
-    status: "online",
-    lastSync: "10分钟前",
-    icon: Watch,
-    color: "bg-medical-primary-light text-medical-primary",
-  },
-  {
-    name: "小米血压计 2",
-    type: "血压监测",
-    status: "offline",
-    lastSync: "2天前",
-    icon: Activity,
-    color: "bg-medical-accent-light text-medical-accent",
-  },
-  {
-    name: "华为体脂秤",
-    type: "体重体脂",
-    status: "online",
-    lastSync: "3小时前",
-    icon: Award,
-    color: "bg-medical-purple-light text-medical-purple",
-  },
-  {
-    name: "欧姆龙血糖仪",
-    type: "血糖监测",
-    status: "offline",
-    lastSync: "1周前",
-    icon: Shield,
-    color: "bg-medical-warning-light text-medical-warning",
-  },
-];
 
 export default function ProfilePage() {
   const [selectedModel, setSelectedModel] = useState("standard");
@@ -123,29 +90,51 @@ export default function ProfilePage() {
   const [patientGender, setPatientGender] = useState("-");
 
   const { user, loading: authLoading } = useAuth();
+  const {
+    patient,
+    loading: profileLoading,
+    error: profileError,
+    reload,
+  } = usePatientProfile(user?.name);
 
   useEffect(() => {
+    if (!patient) return;
+    let cancelled = false;
+
     const fetchData = async () => {
       setDataLoading(true);
       setError(null);
       try {
-        const recordsResult = await listRecords("patient_demo_001");
+        const recordsResult = await listRecords(patient.id);
+        if (cancelled) return;
         setConsultationCount(recordsResult.total || 0);
-
-        const patientData = await getPatient("patient_demo_001");
-        setPatientAge(patientData.age?.toString() || "-");
-        setPatientGender(patientData.gender === "male" ? "男" : patientData.gender === "female" ? "女" : "-");
+        setPatientAge(patient.age != null ? String(patient.age) : "-");
+        setPatientGender(
+          patient.gender === "男" || patient.gender === "女" ? patient.gender : "-"
+        );
       } catch (err) {
-        setError(err as ApiError);
+        if (!cancelled) setError(err as ApiError);
       } finally {
-        setDataLoading(false);
+        if (!cancelled) setDataLoading(false);
       }
     };
 
-    if (!authLoading && user) {
-      fetchData();
-    }
-  }, [authLoading, user]);
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [patient]);
+
+  // Share of the core profile fields the user has actually filled in.
+  const profileCompleteness = patient
+    ? Math.round(
+        ([patient.name, patient.gender, patient.dob, patient.phone].filter(Boolean).length +
+          (patient.allergies?.length ? 1 : 0) +
+          (patient.medical_history?.length ? 1 : 0)) /
+          6 *
+          100
+      )
+    : 0;
 
   const getInitials = (name: string) => {
     return name
@@ -243,10 +232,10 @@ export default function ProfilePage() {
           </div>
           <div className="grid grid-cols-4 gap-4">
             {[
-              { label: "问诊次数", value: consultationCount.toString(), icon: Activity, color: "text-medical-primary", bg: "bg-medical-primary-light" },
-              { label: "健康评分", value: "92", icon: Award, color: "text-medical-accent", bg: "bg-medical-accent-light" },
-              { label: "档案完整度", value: "68%", icon: Shield, color: "text-medical-purple", bg: "bg-medical-purple-light" },
-              { label: "连续打卡", value: "12天", icon: Clock, color: "text-medical-warning", bg: "bg-medical-warning-light" },
+              { label: "病历份数", value: consultationCount.toString(), icon: Activity, color: "text-medical-primary", bg: "bg-medical-primary-light" },
+              { label: "过敏史", value: String(patient?.allergies?.length ?? 0), icon: Award, color: "text-medical-accent", bg: "bg-medical-accent-light" },
+              { label: "既往病史", value: String(patient?.medical_history?.length ?? 0), icon: Shield, color: "text-medical-purple", bg: "bg-medical-purple-light" },
+              { label: "档案完整度", value: `${profileCompleteness}%`, icon: Clock, color: "text-medical-warning", bg: "bg-medical-warning-light" },
             ].map((stat, index) => (
               <div
                 key={stat.label}
@@ -428,51 +417,15 @@ export default function ProfilePage() {
                 <p className="text-sm text-medical-text-muted">管理已连接的健康监测设备</p>
               </div>
             </div>
-            <button className="flex items-center gap-1.5 px-4 py-2 gradient-primary text-white rounded-xl text-sm font-medium hover:shadow-glow transition-all">
-              <Plus className="w-4 h-4" />
-              添加设备
-            </button>
+            <Badge>规划中</Badge>
           </div>
 
-          <div className="space-y-3">
-            {devices.map((device, index) => {
-              const Icon = device.icon;
-              return (
-                <motion.div
-                  key={device.name}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.35 + index * 0.05 }}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-white/60 hover:bg-white transition-colors"
-                >
-                  <div className={`w-12 h-12 rounded-xl ${device.color.split(" ")[0]} flex items-center justify-center flex-shrink-0`}>
-                    <Icon className={`w-6 h-6 ${device.color.split(" ")[1]}`} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-medical-text-primary">{device.name}</div>
-                    <div className="text-sm text-medical-text-muted flex items-center gap-2">
-                      <span>{device.type}</span>
-                      <span className="text-medical-border">·</span>
-                      <span className={`inline-flex items-center gap-1 ${
-                        device.status === "online" ? "text-medical-accent" : "text-medical-text-muted"
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          device.status === "online" ? "bg-medical-accent" : "bg-medical-text-muted"
-                        }`} />
-                        {device.status === "online" ? "在线" : "离线"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-1 text-sm text-medical-text-muted">
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      {device.lastSync}同步
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-medical-text-muted" />
-                </motion.div>
-              );
-            })}
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <Watch className="w-10 h-10 text-medical-text-muted mb-3" />
+            <p className="text-sm text-medical-text-secondary">尚未接入任何健康设备</p>
+            <p className="text-xs text-medical-text-muted mt-1">
+              可穿戴设备同步（心率、睡眠、步数）尚未实现。当前所有健康数据均来自问诊记录与手动填写的档案。
+            </p>
           </div>
         </motion.div>
 

@@ -20,9 +20,14 @@ class BM25Index:
     Thread-safe for read operations. Build once, query many times.
     """
 
-    def __init__(self, k1: float = 1.5, b: float = 0.75):
+    def __init__(self, k1: float = 1.5, b: float = 0.75,
+                 min_score_ratio: float = 0.2):
         self.k1 = k1
         self.b = b
+        # Results scoring less than this fraction of the best hit are dropped:
+        # BM25 scores are unbounded, and Chinese bi-gram tokenisation makes
+        # unrelated queries pick up low-value matches on common characters.
+        self.min_score_ratio = min_score_ratio
         self.documents: list[str] = []
         self.doc_metadata: list[dict] = []
         self.avg_doc_len: float = 0.0
@@ -77,6 +82,12 @@ class BM25Index:
             score = self._score_doc(query_terms, self._tokenize(doc), len(doc.split()))
             if score > 0:
                 scores.append((i, score))
+
+        # Drop weak matches relative to the best hit for this query
+        best = max((s for _, s in scores), default=0.0)
+        if best > 0:
+            floor = best * self.min_score_ratio
+            scores = [(i, s) for i, s in scores if s >= floor]
 
         # Sort and return top_k
         scores.sort(key=lambda x: x[1], reverse=True)

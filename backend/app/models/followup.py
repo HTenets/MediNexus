@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text
 from datetime import datetime, timezone
-from .patient import Base
+from .base import Base
 
 
 class Followup(Base):

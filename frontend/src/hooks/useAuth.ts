@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { User, login, logout, getUser, isLoggedIn as checkLoggedIn } from '@/lib/auth';
+import { User, login, register, logout, getUser, isLoggedIn as checkLoggedIn } from '@/lib/auth';
 
 interface UseAuthReturn {
   user: User | null;
   isLoggedIn: boolean;
   login: (email: string, password: string, role: 'patient' | 'doctor') => Promise<void>;
+  register: (email: string, password: string, name: string, role: 'patient' | 'doctor') => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -33,6 +34,22 @@ export function useAuth(): UseAuthReturn {
     }
   };
 
+  const handleRegister = async (
+    email: string,
+    password: string,
+    name: string,
+    role: 'patient' | 'doctor'
+  ) => {
+    setLoading(true);
+    try {
+      const result = await register(email, password, name, role);
+      setUser(result.user);
+      setIsLoggedIn(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     setUser(null);
@@ -43,6 +60,7 @@ export function useAuth(): UseAuthReturn {
     user,
     isLoggedIn,
     login: handleLogin,
+    register: handleRegister,
     logout: handleLogout,
     loading,
   };

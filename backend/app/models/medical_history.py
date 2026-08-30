@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, JSON
 from datetime import datetime, timezone
-from .patient import Base
+from .base import Base
 
 
 class MedicalHistory(Base):

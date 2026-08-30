@@ -10,11 +10,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 
 from app.api.router import api_router
-from app.core.database import engine
+from app.core.database import db_enabled, engine
+from app.core.demo_seed import seed_demo_data
+from app.core.rag import set_rag_query
 from app.config import settings
 from app.middlewares.auth import auth_middleware
 from app.middlewares.rate_limit import rate_limit_middleware
+from knowledge.factory import create_rag_query
 from llm.factory import create_llm_client
+from orchestration.narrative import render_manifest, stream_narrative
 from orchestration.supervisor import supervisor
 from orchestration.stream import StreamManager
 
@@ -22,11 +26,15 @@ from orchestration.stream import StreamManager
 # agent pipeline automatically degrades to rule-based mode.
 llm_client = create_llm_client()
 
+# Build the retrieval stack once: BM25 over the bundled knowledge base, with
+# Qdrant as the vector route when configured. Injected into the supervisor so
+# agents get real retrieval instead of a keyword lookup over seed strings.
+rag_query = create_rag_query()
+set_rag_query(rag_query)
+supervisor.rag_query = rag_query
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Demo mode check
-IS_DEMO = settings.demo_mode or not settings.database_url
 
 # Max user message length to prevent abuse
 MAX_MESSAGE_LENGTH = 5000
@@ -34,16 +42,19 @@ MAX_MESSAGE_LENGTH = 5000
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if IS_DEMO:
-        logger.info("🔧 DEMO MODE: Running without database. Data will NOT persist.")
+    if not db_enabled():
+        logger.info("🔧 No DATABASE_URL configured — running without persistence (demo).")
+    elif settings.demo_mode:
+        await seed_demo_data()
+        logger.info("🔧 DEMO MODE: database connected, demo accounts/data seeded.")
     else:
-        logger.info("🚀 PRODUCTION MODE: Database connected.")
+        logger.info("🚀 PRODUCTION MODE: database connected.")
     yield
-    if not IS_DEMO:
+    if db_enabled():
         await engine.dispose()
 
 
-app = FastAPI(title="MediNexus", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="MediNexus", version="0.1.1", lifespan=lifespan)
 
 origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()] if settings.allowed_origins else ["*"]
 
@@ -97,32 +108,33 @@ async def _run_agent_stream(session, stream, content: str, llm_client=None) -> b
         await stream.emit_error("处理过程中发生错误，请重试", "AGENT_ERROR")
         return False
 
-    lines = []
-    for fact in manifest.facts:
-        lines.append(f"• {fact}")
-    if manifest.pending_questions:
-        lines.extend(
-            ["", "**需要进一步了解:**",
-             *[f"- {q}" for q in manifest.pending_questions]]
-        )
-    if manifest.risk_flags:
-        lines.extend(
-            ["", "**⚠ 注意:**",
-             *[f"- {flag}" for flag in manifest.risk_flags]]
-        )
-
-    summary_text = "\n".join(lines)
-
-    chunk_size = 2
-    for i in range(0, len(summary_text), chunk_size):
-        await stream.emit_token(summary_text[i : i + chunk_size])
-        await asyncio.sleep(0.012)
+    summary_text = await _emit_summary(manifest, stream, llm_client, agent_name)
 
     await stream.emit_agent_end(
         summary=summary_text,
         manifest=manifest.model_dump(),
     )
     return True
+
+
+async def _emit_summary(manifest, stream, llm, agent_name: str) -> str:
+    """Send the stage result to the client, streaming it when possible.
+
+    With an LLM configured the manifest is narrated into patient-friendly
+    prose over the provider's real streaming API, so tokens arrive as the model
+    produces them. Without one, the rendered manifest is sent in a single
+    message — never sliced up with artificial sleeps to look like typing.
+    """
+    if llm is not None and settings.stream_narrative:
+        narrated = await stream_narrative(llm, manifest, stream.emit_token)
+        if narrated:
+            return narrated
+        logger.info("Narration empty for agent %s — sending rendered manifest", agent_name)
+
+    text = render_manifest(manifest)
+    if text:
+        await stream.emit_token(text)
+    return text
 
 
 async def _run_finalize(session, stream, llm_client=None) -> None:

@@ -117,14 +117,14 @@ class TestSupervisorAgent:
         supervisor = SupervisorAgent()
         await supervisor.create_session("session_abc", "patient_01")
 
-        session = supervisor.get_session("session_abc")
+        session = await supervisor.get_session("session_abc")
         assert session is not None
         assert session.session_id == "session_abc"
 
     @pytest.mark.asyncio
     async def test_get_nonexistent_session(self):
         supervisor = SupervisorAgent()
-        session = supervisor.get_session("nonexistent")
+        session = await supervisor.get_session("nonexistent")
         assert session is None
 
     @pytest.mark.asyncio

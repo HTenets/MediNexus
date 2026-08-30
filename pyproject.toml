@@ -12,14 +12,12 @@ dependencies = [
     "redis>=5.2",
     "pydantic>=2.10",
     "pydantic-settings>=2.7",
-    "langgraph>=0.3",
-    "langchain-core>=0.3",
     "qdrant-client>=1.13",
     # "mem0>=0.1",  # W5: Memory system — install separately when needed
     "celery>=5.4",
     "httpx>=0.28",
     "python-jose[cryptography]>=3.3",
-    "passlib[bcrypt]>=1.7",
+    "bcrypt>=4.1",
 ]
 
 [tool.setuptools.packages.find]
@@ -37,6 +35,9 @@ dev = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["backend"]
+markers = [
+    "slow: marks tests that touch external systems (Redis/DB) via fallbacks",
+]
 
 [tool.coverage.run]
 source = ["backend"]

@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   User,
   Lock,
@@ -15,33 +15,64 @@ import {
   Code,
   Loader2,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/hooks/useAuth";
+import { healthCheck, type DemoCredentials } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loading } = useAuth();
+  const { login, register, loading } = useAuth();
   const [role, setRole] = useState<"patient" | "doctor">("patient");
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [demoCreds, setDemoCreds] = useState<DemoCredentials | null>(null);
 
-  const handleLogin = async () => {
+  useEffect(() => {
+    healthCheck()
+      .then((h) => {
+        if (h.demo_credentials) setDemoCreds(h.demo_credentials);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSubmit = async () => {
     if (!email || !password) {
       setError("请输入邮箱和密码");
       return;
     }
     setError("");
     try {
-      await login(email, password, role);
+      if (activeTab === "register") {
+        if (!name.trim()) {
+          setError("请输入姓名");
+          return;
+        }
+        if (password.length < 8) {
+          setError("密码至少需要 8 位");
+          return;
+        }
+        await register(email, password, name.trim(), role);
+      } else {
+        await login(email, password, role);
+      }
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "登录失败");
+      setError(err instanceof Error ? err.message : activeTab === "login" ? "登录失败" : "注册失败");
     }
+  };
+
+  const fillDemoAccount = () => {
+    if (!demoCreds) return;
+    const creds = role === "doctor" ? demoCreds.doctor : demoCreds.patient;
+    setEmail(creds.email);
+    setPassword(creds.password);
+    setActiveTab("login");
+    setError("");
   };
 
   return (
@@ -208,10 +239,36 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {demoCreds && (
+              <div className="mb-5 text-xs bg-medical-primary/5 border border-medical-primary/20 rounded-xl px-4 py-3 text-medical-text-secondary flex items-center justify-between gap-2">
+                <span>
+                  演示账号（{role === "doctor" ? "医生" : "患者"}）：
+                  {role === "doctor" ? demoCreds.doctor.email : demoCreds.patient.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={fillDemoAccount}
+                  className="text-medical-primary font-medium hover:underline whitespace-nowrap"
+                >
+                  一键填入
+                </button>
+              </div>
+            )}
+
             <form className="space-y-5">
+              {activeTab === "register" && (
+                <Input
+                  label="姓名"
+                  placeholder="请输入您的姓名"
+                  leftIcon={<User className="w-4 h-4" />}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              )}
+
               <Input
-                label="邮箱 / 手机号"
-                placeholder="请输入邮箱或手机号"
+                label="邮箱"
+                placeholder="请输入邮箱"
                 leftIcon={<User className="w-4 h-4" />}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -222,9 +279,6 @@ export default function LoginPage() {
                   <label className="block text-sm font-medium text-medical-text-primary">
                     密码
                   </label>
-                  <a href="#" className="text-xs text-medical-primary hover:underline">
-                    忘记密码?
-                  </a>
                 </div>
                 <div className="relative">
                   <div className="absolute left-4 top-1/2 -translate-y-1/2 text-medical-text-muted">
@@ -232,7 +286,7 @@ export default function LoginPage() {
                   </div>
                   <input
                     type={showPassword ? "text" : "password"}
-                    placeholder="请输入密码"
+                    placeholder={activeTab === "register" ? "至少 8 位密码" : "请输入密码"}
                     className="w-full rounded-xl border border-medical-border px-11 py-3 text-sm outline-none transition-all input-focus"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -265,14 +319,14 @@ export default function LoginPage() {
                 whileHover={!loading ? { scale: 1.02 } : {}}
                 whileTap={!loading ? { scale: 0.98 } : {}}
                 type="button"
-                onClick={handleLogin}
+                onClick={handleSubmit}
                 disabled={loading}
                 className="w-full gradient-primary text-white rounded-xl py-3.5 text-sm font-medium shadow-medical-primary hover:shadow-glow transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    登录中...
+                    {activeTab === "login" ? "登录中..." : "注册中..."}
                   </>
                 ) : (
                   <>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import ChatContainer from "@/components/chat/ChatContainer";
 import { createConsultationSocket, ConsultationSocket } from "@/lib/websocket";
@@ -37,6 +38,19 @@ const quickSymptoms = [
 ];
 
 export default function ConsultationPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <ConsultationContent />
+    </Suspense>
+  );
+}
+
+function ConsultationContent() {
+  // Doctors may open a consultation for a specific patient via
+  // /consultation?patient_id=...; otherwise the backend mints an ad-hoc id.
+  const searchParams = useSearchParams();
+  const patientIdParam = searchParams.get("patient_id") || undefined;
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [socket, setSocket] = useState<ConsultationSocket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,7 +82,7 @@ export default function ConsultationPage() {
   }, []);
 
   useEffect(() => {
-    startConsultation()
+    startConsultation(patientIdParam)
       .then((response: ConsultationStartResponse) => {
         setSessionId(response.session_id);
         setError(null);
@@ -79,7 +93,7 @@ export default function ConsultationPage() {
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [patientIdParam]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -93,7 +107,7 @@ export default function ConsultationPage() {
   const handleRetry = () => {
     setLoading(true);
     setError(null);
-    startConsultation()
+    startConsultation(patientIdParam)
       .then((response: ConsultationStartResponse) => {
         setSessionId(response.session_id);
       })

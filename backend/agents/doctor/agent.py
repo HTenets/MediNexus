@@ -41,6 +41,15 @@ MEDICAL_DISCLAIMER = (
 )
 
 
+def _merge_memory(patient_history: str, memory_block: str) -> str:
+    """Combine caller-supplied history with the hierarchical memory block."""
+    history = (patient_history or "").strip()
+    memory = (memory_block or "").strip()
+    if history and memory:
+        return f"{history}\n\n{memory}"
+    return history or memory
+
+
 @agent_registry.register
 class DoctorAgent(BaseAgent):
     """Performs medical diagnosis with specialty Skill selection and LLM/rule dual-mode."""
@@ -65,6 +74,11 @@ class DoctorAgent(BaseAgent):
         messages = context.get("messages", [])
         patient_history = context.get("patient_history", "")
         current_state = context.get("diagnosis_state", DiagnosisState.INITIAL)
+
+        # Hierarchical memory (patient profile + past visits) supplied by the
+        # supervisor. Folded into the history block so both the LLM and the
+        # rule-based path see it.
+        patient_history = _merge_memory(patient_history, context.get("patient_memory", ""))
 
         if not symptoms.strip():
             return HandoverManifest(

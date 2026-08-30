@@ -1,3 +1,22 @@
+"""CoordinatorAgent — multi-specialty consultation planning.
+
+STATUS: implemented and unit-tested, but **not wired into the live pipeline**.
+
+``SupervisorAgent.route`` never returns ``"coordinator"``. It is deliberately
+left unrouted rather than half-wired: the triggers below match very common
+presentations (头痛、发热、胸闷), so enabling them as-is would divert the
+majority of everyday consultations into a multi-specialty branch that has no
+specialist round-table behind it yet.
+
+Wiring this up (v0.2.0) requires:
+  1. Narrowing the triggers so they fire only on genuinely multi-system cases
+     (e.g. requiring >= 2 distinct trigger groups, or an explicit triage flag).
+  2. A real specialist round-table — ``invite_specialist`` currently only
+     reports whether a matching Skill exists, it does not run one.
+  3. Routing coordinator -> doctor so the synthesised specialties inform the
+     diagnosis (today the graph would go coordinator -> review, skipping it).
+"""
+
 from agents.base import BaseAgent
 from agents.registry import registry
 from app.schemas.agent import HandoverManifest

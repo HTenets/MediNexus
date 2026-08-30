@@ -19,15 +19,18 @@ import {
   Clock,
   RefreshCw,
   XCircle,
+  FileText,
 } from "lucide-react";
-import { listRecords, getPatient, ApiError } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
+import { usePatientProfile } from "@/hooks/usePatient";
+import { listRecords, ApiError } from "@/lib/api";
 
 interface DashboardData {
   vitals: Record<string, string>;
-  bio_age: string;
   risks: string[];
   ai_suggestions: string[];
-  devices: string[];
+  record_count: number;
+  last_visit: string | null;
 }
 
 const vitalsConfig = {
@@ -36,8 +39,6 @@ const vitalsConfig = {
   oxygen: { label: "血氧", unit: "%", icon: Activity, color: "text-green-500", bg: "bg-green-50" },
   temperature: { label: "体温", unit: "°C", icon: Thermometer, color: "text-orange-500", bg: "bg-orange-50" },
 };
-
-const PATIENT_ID = "patient_demo_001";
 
 function extractVitalsFromRecords(records: string[]): Record<string, string> {
   const vitals: Record<string, string> = {
@@ -112,55 +113,52 @@ function extractSuggestionsFromPlans(plans: string[]): string[] {
   return suggestions.length > 0 ? suggestions : ["暂无建议"];
 }
 
-function calculateBioAge(age?: number): string {
-  if (!age) return "--";
-  const bioAge = Math.floor(age * 0.95);
-  return bioAge.toString();
-}
-
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const { patient, loading: profileLoading, error: profileError, reload } = usePatientProfile(user?.name);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
 
-  const loadDashboardData = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [recordsResponse, patient] = await Promise.all([
-        listRecords(PATIENT_ID),
-        getPatient(PATIENT_ID),
-      ]);
-
-      const records = recordsResponse.records || [];
-      const allRecordTexts = records.flatMap((r) => [r.subjective, r.objective, r.assessment, r.plan, r.diagnosis]);
-      const plans = records.map((r) => r.plan).filter((p) => p);
-
-      const vitals = extractVitalsFromRecords(allRecordTexts);
-      const risks = extractRisksFromRecords(allRecordTexts, patient.medical_history || []);
-      const aiSuggestions = extractSuggestionsFromPlans(plans);
-      const bioAge = calculateBioAge(patient.age);
-
-      setData({
-        vitals,
-        bio_age: bioAge,
-        risks,
-        ai_suggestions: aiSuggestions,
-        devices: ["智能手环 - 已连接", "血压计 - 已连接", "血糖仪 - 已连接"],
-      });
-    } catch (err) {
-      setError(err as ApiError);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (!patient) return;
+    let cancelled = false;
 
-  if (loading) {
+    const loadDashboardData = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const recordsResponse = await listRecords(patient.id);
+
+        const records = recordsResponse.records || [];
+        const allRecordTexts = records.flatMap((r) => [r.subjective, r.objective, r.assessment, r.plan, r.diagnosis]);
+        const plans = records.map((r) => r.plan).filter((p) => p);
+
+        if (cancelled) return;
+        setData({
+          vitals: extractVitalsFromRecords(allRecordTexts),
+          risks: extractRisksFromRecords(allRecordTexts, patient.medical_history || []),
+          ai_suggestions: extractSuggestionsFromPlans(plans),
+          record_count: records.length,
+          last_visit: records[0]?.date || null,
+        });
+      } catch (err) {
+        if (!cancelled) setError(err as ApiError);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+    return () => {
+      cancelled = true;
+    };
+  }, [patient]);
+
+  const failure: string | null = profileError || error?.message || null;
+
+  if (loading || profileLoading) {
     return (
       <AppShell stageLabel="控制台" activePath="/dashboard">
         <div className="flex items-center justify-center h-96">
@@ -170,7 +168,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (error) {
+  if (failure) {
     return (
       <AppShell stageLabel="控制台" activePath="/dashboard">
         <div className="flex flex-col items-center justify-center h-96 space-y-4">
@@ -182,9 +180,9 @@ export default function DashboardPage() {
               数据加载失败
             </h2>
             <p className="text-medical-text-secondary mb-4">
-              {error.message || "网络连接异常，请稍后重试"}
+              {failure || "网络连接异常，请稍后重试"}
             </p>
-            <Button onClick={loadDashboardData} className="gap-2">
+            <Button onClick={reload} className="gap-2">
               <RefreshCw className="w-4 h-4" />
               刷新重试
             </Button>
@@ -222,7 +220,7 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={loadDashboardData}
+              onClick={reload}
               className="gap-2"
               disabled={loading}
             >
@@ -247,12 +245,16 @@ export default function DashboardPage() {
                   transition={{ type: "spring", stiffness: 200 }}
                   className="text-6xl font-bold text-gradient mb-2"
                 >
-                  {data?.bio_age || "--"}
+                  {patient?.age ?? "--"}
                   <span className="text-xl text-medical-text-muted font-normal ml-1">岁</span>
                 </motion.div>
                 <div className="text-medical-accent text-sm font-medium flex items-center justify-center gap-2">
                   <Activity className="w-4 h-4" />
-                  生物学年龄
+                  档案年龄
+                </div>
+                <div className="text-xs text-medical-text-muted mt-2">
+                  {patient?.gender ? `${patient.gender} · ` : ""}
+                  {patient?.name || "本人"}
                 </div>
               </div>
             </Card>
@@ -389,22 +391,33 @@ export default function DashboardPage() {
             </Card>
 
             <Card className="p-6">
-              <CardHeader title="设备同步" />
+              <CardHeader title="过敏与既往史" />
               <CardContent className="space-y-3">
-                {(data?.devices || ["暂无设备信息"]).map((device, index) => (
-                  <motion.div
-                    key={device}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 + index * 0.1 }}
-                    className="flex items-center justify-between p-3 rounded-xl bg-gray-50"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-medical-text-muted" />
-                      <span className="text-sm text-medical-text-secondary">{device}</span>
-                    </div>
-                    <span className="w-2 h-2 rounded-full bg-medical-accent" />
-                  </motion.div>
+                {[
+                  { label: "过敏史", items: patient?.allergies || [] },
+                  { label: "既往病史", items: patient?.medical_history || [] },
+                ].map((group, groupIndex) => (
+                  <div key={group.label} className="space-y-2">
+                    <div className="text-xs font-medium text-medical-text-muted">{group.label}</div>
+                    {group.items.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {group.items.map((item, index) => (
+                          <motion.span
+                            key={item}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.6 + groupIndex * 0.1 + index * 0.05 }}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 text-sm text-medical-text-secondary"
+                          >
+                            <Shield className="w-3.5 h-3.5 text-medical-text-muted" />
+                            {item}
+                          </motion.span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-medical-text-muted">暂无记录，可在个人档案中补充</div>
+                    )}
+                  </div>
                 ))}
               </CardContent>
             </Card>
@@ -418,10 +431,15 @@ export default function DashboardPage() {
           className="grid grid-cols-4 gap-6"
         >
           {[
-            { title: "今日步数", value: "8,520", icon: Activity, color: "text-medical-accent" },
-            { title: "睡眠时长", value: "7.5h", icon: Clock, color: "text-medical-purple" },
-            { title: "饮水量", value: "1.8L", icon: Thermometer, color: "text-medical-primary" },
-            { title: "卡路里", value: "1,250", icon: Heart, color: "text-red-500" },
+            { title: "病历总数", value: String(data?.record_count ?? 0), icon: FileText, color: "text-medical-accent" },
+            {
+              title: "最近就诊",
+              value: data?.last_visit ? data.last_visit.slice(0, 10) : "暂无",
+              icon: Clock,
+              color: "text-medical-purple",
+            },
+            { title: "风险关注项", value: String(data?.risks?.length ?? 0), icon: AlertTriangle, color: "text-medical-primary" },
+            { title: "随访建议", value: String(data?.ai_suggestions?.length ?? 0), icon: Heart, color: "text-red-500" },
           ].map((stat, index) => (
             <motion.div
               key={stat.title}
@@ -433,7 +451,7 @@ export default function DashboardPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                <Badge variant="primary">{new Date().toLocaleDateString()}</Badge>
+                <Badge variant="primary">来自健康档案</Badge>
               </div>
               <div className="text-3xl font-bold text-medical-text-primary mb-1">{stat.value}</div>
               <div className="text-sm text-medical-text-secondary">{stat.title}</div>

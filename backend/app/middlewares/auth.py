@@ -1,7 +1,12 @@
 """Auth middleware — enforces JWT authentication on protected paths.
 
-Public paths (health, docs, login) bypass auth. WebSocket connections
-are authenticated separately in the websocket endpoint.
+Public paths (health, docs, login, register, refresh) bypass auth.
+WebSocket connections are authenticated separately in the websocket endpoint.
+
+``/auth/refresh`` must be public: the whole point of refreshing is that the
+caller's access token has already expired, so requiring one here would make
+the endpoint unreachable and lock users out permanently. The endpoint
+validates the refresh token itself.
 """
 
 import logging
@@ -18,6 +23,9 @@ PUBLIC_PATHS = {
     "/health",
     "/api/v1/health",
     "/api/v1/auth/login",
+    "/api/v1/auth/register",
+    "/api/v1/auth/refresh",
+    "/api/v1/auth/logout",
     "/docs",
     "/openapi.json",
     "/redoc",

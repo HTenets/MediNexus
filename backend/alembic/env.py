@@ -1,21 +1,23 @@
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
-from alembic import context
-import sys
+"""Alembic environment — async engine support for postgresql+asyncpg URLs."""
+
+import asyncio
 import os
+import sys
+from logging.config import fileConfig
+
+from alembic import context
+from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import async_engine_from_config
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.config import settings
-from app.models.patient import Base
-import app.models.consultation
-import app.models.prescription
-import app.models.medical_history
-import app.models.followup
-import app.models.audit_log
+from app.models import Base  # noqa: F401 — imports register all tables
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+
+if settings.database_url:
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -25,21 +27,34 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
+    if not url:
+        raise SystemExit("MEDINEXUS_DATABASE_URL is not set — cannot run migrations.")
     context.configure(url=url, target_metadata=target_metadata, literal_binds=True)
     with context.begin_transaction():
         context.run_migrations()
 
 
-def run_migrations_online() -> None:
-    connectable = engine_from_config(
+def do_run_migrations(connection) -> None:
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_async_migrations() -> None:
+    connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
-        with context.begin_transaction():
-            context.run_migrations()
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+    await connectable.dispose()
+
+
+def run_migrations_online() -> None:
+    if not config.get_main_option("sqlalchemy.url"):
+        raise SystemExit("MEDINEXUS_DATABASE_URL is not set — cannot run migrations.")
+    asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():

@@ -3,10 +3,11 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
+import { searchKnowledge, type KnowledgeItem } from "@/lib/api";
 
 interface SourceItem {
   title: string; source: string; match?: string; weight?: string;
-  content: string; journal?: string;
+  content: string; journal?: string | null;
 }
 
 export default function Page() {
@@ -22,13 +23,32 @@ function AnalysisContent() {
   const [theory, setTheory] = useState<SourceItem[]>([]);
   const [papers, setPapers] = useState<SourceItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [route, setRoute] = useState<"bm25" | "vector" | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/mock/knowledge-cases?query=${query}`).then(r => r.json()),
-      fetch(`/api/mock/knowledge-theory?query=${query}`).then(r => r.json()),
-      fetch(`/api/mock/knowledge-papers?query=${query}`).then(r => r.json()),
-    ]).then(([c, t, p]) => { setCases(c); setTheory(t); setPapers(p); setLoading(false); }).catch(() => setLoading(false));
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    searchKnowledge(query)
+      .then((result) => {
+        if (cancelled) return;
+        setCases(result.cases || []);
+        setTheory(result.theory || []);
+        setPapers(result.papers || []);
+        setRoute(result.route);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError((err as { message?: string }).message || "知识库检索失败");
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [query]);
 
   const renderSource = (items: SourceItem[], label: string, color: string, bg: string) => (
@@ -39,7 +59,15 @@ function AnalysisContent() {
         </span>
         {label}
       </h3>
-      {loading ? <div className="flex gap-1.5 py-8 justify-center">{[0,150,300].map(d=><span key={d} className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{animationDelay:`${d}ms`}}/>)}</div> : (
+      {loading ? (
+        <div className="flex gap-1.5 py-8 justify-center">{[0,150,300].map(d=><span key={d} className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{animationDelay:`${d}ms`}}/>)}</div>
+      ) : error ? (
+        <div className="text-sm text-medical-danger py-8 text-center">{error}</div>
+      ) : items.length === 0 ? (
+        <div className="text-sm text-medical-text-muted py-8 text-center">
+          该知识库未检索到与「{query}」相关的内容
+        </div>
+      ) : (
         items.map((item, i) => (
           <div key={i} className="bg-gray-50 rounded-xl p-4 border border-medical-border mb-3 last:mb-0">
             <div className="font-semibold text-medical-text-primary mb-1">{item.title}</div>
@@ -57,7 +85,14 @@ function AnalysisContent() {
     <AppShell stageLabel="多维知识源分析 · 阶段 2/4" activePath="/consultation">
       <div className="p-8">
         <h1 className="font-heading text-3xl font-bold text-medical-text-primary mb-2">多维知识源深度分析</h1>
-        <p className="text-medical-text-secondary mb-6">MediNexus 正在基于三个专业知识库对当前病例进行交叉验证。</p>
+        <p className="text-medical-text-secondary mb-6">
+          MediNexus 正在基于三个专业知识库对「{query}」进行交叉验证
+          {route && (
+            <span className="ml-2 text-xs text-medical-text-muted">
+              （检索路由：{route === "bm25" ? "BM25 全文检索" : "向量检索"}）
+            </span>
+          )}
+        </p>
         <div className="grid grid-cols-3 gap-5">
           {renderSource(cases, "临床案例库", "text-medical-primary", "bg-medical-primary-light")}
           {renderSource(theory, "医学理论库", "text-medical-warning", "bg-medical-warning-light")}

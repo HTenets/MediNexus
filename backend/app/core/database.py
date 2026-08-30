@@ -21,6 +21,11 @@ else:
 engine = _engine
 
 
+def db_enabled() -> bool:
+    """True when a real database is configured."""
+    return AsyncSession is not None
+
+
 async def get_session():
     """FastAPI dependency: yields an async DB session.
 

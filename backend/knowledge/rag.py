@@ -21,10 +21,14 @@ class RAGQuery:
     """Main entry point for knowledge retrieval. Used by Doctor and Review agents."""
 
     def __init__(self, retriever: MultiSourceRetriever | None = None,
-                 knowledge_graph: KnowledgeGraph | None = None):
+                 knowledge_graph: KnowledgeGraph | None = None,
+                 force_fallback: bool = False):
         self.retriever = retriever
         self.knowledge_graph = knowledge_graph
-        self._vector_store_healthy = True  # will be checked on first query
+        # ``force_fallback`` is set when no vector store is configured at all:
+        # BM25 is then not a degraded mode but the intended retrieval path.
+        self.force_fallback = force_fallback
+        self._vector_store_healthy = not force_fallback
 
     async def query(self, text: str, top_k: int = 5,
                     use_fallback: bool | None = None,
@@ -39,7 +43,7 @@ class RAGQuery:
         """
         # Auto-detect fallback
         if use_fallback is None:
-            use_fallback = not self._vector_store_healthy
+            use_fallback = self.force_fallback or not self._vector_store_healthy
 
         # Retrieve from multi-source
         result = await self.retriever.retrieve(text, top_k=top_k, use_fallback=use_fallback)

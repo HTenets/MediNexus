@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import AppShell from "@/components/layout/AppShell";
@@ -23,37 +23,14 @@ import {
   ChevronRight,
   RefreshCw,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { usePatientProfile } from "@/hooks/usePatient";
 import {
   listRecords,
-  getPatient,
   ApiError,
   MedicalRecord,
   Patient,
 } from "@/lib/api";
-
-const PATIENT_ID = "patient_demo_001";
-
-const followUps = [
-  {
-    title: "复查空腹血脂",
-    due: "3天后到期",
-    dueColor: "text-medical-warning",
-    desc: "需空腹 8-12 小时 · 建议上午就诊",
-    urgent: true,
-  },
-  {
-    title: "内分泌科咨询",
-    due: "2周后",
-    desc: "评估血糖控制情况",
-    urgent: false,
-  },
-  {
-    title: "年度体检",
-    due: "1个月后",
-    desc: "全面体检套餐",
-    urgent: false,
-  },
-];
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -134,32 +111,71 @@ function getTimelineData(records: MedicalRecord[]) {
   }));
 }
 
+type TimeFilter = "all" | "1m" | "3m" | "1y";
+
+interface OverviewStat {
+  label: string;
+  value: string;
+  unit?: string;
+  subValue?: string;
+  valueColor?: string;
+}
+
 export default function RecordsPage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <RecordsContent />
+    </Suspense>
+  );
+}
+
+function RecordsContent() {
+  const searchParams = useSearchParams();
+  // Doctors open another patient's chart via /records?patient_id=...; without
+  // it the page shows the signed-in user's own records.
+  const requestedPatientId = searchParams.get("patient_id");
+  const {
+    patient: ownProfile,
+    loading: profileLoading,
+    error: profileError,
+    reload,
+  } = usePatientProfile();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
   const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [recordsRes, patientRes] = await Promise.all([
-        listRecords(PATIENT_ID),
-        getPatient(PATIENT_ID),
-      ]);
-      setRecords(recordsRes.records || []);
-      setPatient(patientRes);
-    } catch (err) {
-      setError(err as ApiError);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const patientId = requestedPatientId || ownProfile?.id || null;
 
   useEffect(() => {
+    if (!patientId) return;
+    let cancelled = false;
+
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const recordsRes = await listRecords(patientId);
+        if (cancelled) return;
+        setRecords(recordsRes.records || []);
+        // Viewing someone else's chart: the record list is authoritative and
+        // the profile card is hidden rather than fetched from the wrong user.
+        setPatient(requestedPatientId ? null : ownProfile);
+      } catch (err) {
+        if (!cancelled) setError(err as ApiError);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
     loadData();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [patientId, requestedPatientId, ownProfile]);
 
   const vitalsData = records.length > 0 ? extractVitals(records[0].objective) : [
     { label: "暂无体征数据", value: "-" },
@@ -174,6 +190,7 @@ export default function RecordsPage() {
   const recentRecords = records.map((record) => ({
     id: record.id,
     date: formatDate(record.date),
+    rawDate: record.date,
     type: getRecordType(record.diagnosis),
     summary: record.subjective || record.assessment || "暂无摘要",
     status: "completed",
@@ -181,36 +198,44 @@ export default function RecordsPage() {
     doctor: record.doctor,
   }));
 
-  const overviewStats = [
+  const visibleRecords = recentRecords.filter((record) => {
+    if (typeFilter !== "all" && record.type !== typeFilter) return false;
+    if (timeFilter === "all") return true;
+    const months = { "1m": 1, "3m": 3, "1y": 12 }[timeFilter];
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - months);
+    return new Date(record.rawDate) >= cutoff;
+  });
+
+  const overviewStats: OverviewStat[] = [
     {
-      label: "综合健康评分",
-      value: "92",
-      unit: "/100",
-      progress: 92,
-      color: "text-medical-primary",
-      bgColor: "bg-medical-primary",
+      label: "病历总数",
+      value: String(records.length),
+      unit: "份",
+      subValue: patient ? `${patient.name} · ${patient.gender || "性别未填"}` : "他人档案",
     },
     {
-      label: "生物学年龄",
-      value: "34",
+      label: "档案年龄",
+      value: patient?.age != null ? String(patient.age) : "-",
       unit: "岁",
-      badge: "↓ -2岁",
-      badgeColor: "bg-medical-accent-light text-medical-accent",
+      subValue: patient?.dob ? `出生 ${patient.dob}` : "未填写出生日期",
     },
     {
       label: "最近问诊",
-      value: records.length > 0 ? records[0].diagnosis : "-",
-      subValue: records.length > 0 ? `${formatDate(records[0].date)} · 已完结` : "-",
+      value: records.length > 0 ? records[0].diagnosis || "未记录诊断" : "-",
+      subValue: records.length > 0 ? `${formatDate(records[0].date)} · 已完结` : "暂无记录",
     },
     {
-      label: "待随访任务",
-      value: "3",
-      subValue: "1 项即将到期",
-      valueColor: "text-medical-warning",
+      label: "过敏与既往史",
+      value: String((patient?.allergies?.length || 0) + (patient?.medical_history?.length || 0)),
+      unit: "项",
+      subValue: patient
+        ? `过敏 ${patient.allergies?.length || 0} · 既往 ${patient.medical_history?.length || 0}`
+        : "他人档案",
     },
   ];
 
-  if (loading) {
+  if (loading || profileLoading) {
     return (
       <AppShell stageLabel="健康档案中心" activePath="/records">
         <LoadingState />
@@ -229,7 +254,7 @@ export default function RecordsPage() {
           <p className="text-medical-text-secondary mb-6">
             {error.message}
           </p>
-          <Button onClick={loadData} className="gap-2">
+          <Button onClick={reload} className="gap-2">
             <RefreshCw className="w-4 h-4" />
             重试
           </Button>
@@ -262,10 +287,11 @@ export default function RecordsPage() {
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
-              onClick={loadData}
+              onClick={reload}
               className="gap-2"
+              disabled={loading}
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
               刷新
             </Button>
             <Link
@@ -308,21 +334,6 @@ export default function RecordsPage() {
                   </span>
                 )}
               </div>
-              {stat.progress !== undefined && (
-                <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${stat.bgColor} rounded-full`}
-                    style={{ width: `${stat.progress}%` }}
-                  />
-                </div>
-              )}
-              {stat.badge && (
-                <span
-                  className={`${stat.badgeColor} text-xs px-2 py-0.5 rounded-full mt-1 inline-block`}
-                >
-                  {stat.badge}
-                </span>
-              )}
               {stat.subValue && (
                 <div className="text-xs text-medical-text-muted mt-1">{stat.subValue}</div>
               )}
@@ -418,55 +429,47 @@ export default function RecordsPage() {
                   <div className="w-8 h-8 rounded-lg bg-medical-warning-light flex items-center justify-center">
                     <Calendar className="w-4 h-4 text-medical-warning" />
                   </div>
-                  <h3 className="font-semibold text-medical-text-primary">随访计划</h3>
+                  <h3 className="font-semibold text-medical-text-primary">医嘱与随访</h3>
                 </div>
-                <Badge variant="warning">3 项待办</Badge>
+                <Badge variant="default">{records.length} 份病历</Badge>
               </div>
               <div className="space-y-3">
-                {followUps.map((item, index) => (
-                  <div
-                    key={index}
-                    className={`flex gap-3 items-start p-3 rounded-xl border ${
-                      item.urgent
-                        ? "bg-medical-warning-light/40 border-medical-warning/20"
-                        : "bg-white/60 border-medical-border"
-                    }`}
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                        item.urgent ? "bg-medical-warning" : "bg-medical-primary"
-                      }`}
-                    />
-                    <div className="flex-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-medical-text-primary">
-                          {item.title}
-                        </span>
-                        <span
-                          className={`text-xs font-medium ${item.dueColor || "text-medical-text-muted"}`}
-                        >
-                          {item.due}
-                        </span>
-                      </div>
-                      <div className="text-xs text-medical-text-muted mt-0.5">{item.desc}</div>
-                    </div>
-                    <button className="text-xs bg-white border border-medical-border rounded-lg px-3 py-1 hover:bg-gray-50 transition-colors flex-shrink-0">
-                      预约
-                    </button>
+                {records.length === 0 ? (
+                  <div className="text-sm text-medical-text-muted py-4 text-center">
+                    暂无医嘱记录。完成一次问诊后，诊疗方案与随访建议会显示在这里。
                   </div>
-                ))}
+                ) : (
+                  records.slice(0, 3).map((record) => (
+                    <div
+                      key={record.id}
+                      className="flex gap-3 items-start p-3 rounded-xl border bg-white/60 border-medical-border"
+                    >
+                      <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0 bg-medical-primary" />
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-medical-text-primary">
+                            {record.diagnosis || record.department || "问诊记录"}
+                          </span>
+                          <span className="text-xs font-medium text-medical-text-muted">
+                            {formatDate(record.date)}
+                          </span>
+                        </div>
+                        <div className="text-xs text-medical-text-muted mt-0.5 line-clamp-2">
+                          {record.plan || record.assessment || "暂无医嘱"}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
             <div className="glass-card rounded-2xl p-5">
               <div className="flex justify-between items-center mb-5">
                 <h3 className="font-semibold text-medical-text-primary">医疗时间线</h3>
-                <Link
-                  href="#"
-                  className="text-sm text-medical-primary hover:text-medical-primary-dark transition-colors"
-                >
-                  查看全部 →
-                </Link>
+                <span className="text-sm text-medical-text-muted">
+                  共 {timelineData.length} 条
+                </span>
               </div>
               <div className="relative pl-8">
                 <div className="absolute left-[11px] top-0 bottom-0 w-0.5 bg-gray-200" />
@@ -517,20 +520,16 @@ export default function RecordsPage() {
             <div className="glass-card rounded-2xl p-5">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-medical-text-primary text-sm">最近记录</h3>
-                <Link
-                  href="#"
-                  className="text-xs text-medical-primary hover:text-medical-primary-dark transition-colors"
-                >
-                  全部
-                </Link>
+                <span className="text-xs text-medical-text-muted">
+                  共 {recentRecords.length} 条
+                </span>
               </div>
               <div className="space-y-3">
                 {recentRecords.length > 0 ? (
                   recentRecords.slice(0, 3).map((record) => (
-                    <Link
+                    <div
                       key={record.id}
-                      href={`/summary?session_id=${record.id}`}
-                      className="block p-3 rounded-xl hover:bg-white/60 transition-colors group"
+                      className="block p-3 rounded-xl transition-colors"
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs px-2 py-0.5 rounded-md bg-medical-primary-light text-medical-primary">
@@ -544,7 +543,7 @@ export default function RecordsPage() {
                         <Calendar className="w-3 h-3" />
                         {record.date}
                       </div>
-                    </Link>
+                    </div>
                   ))
                 ) : (
                   <div className="text-sm text-medical-text-muted text-center py-4">
@@ -619,66 +618,71 @@ export default function RecordsPage() {
               全部就诊记录
             </h2>
             <div className="flex items-center gap-2">
-              <select className="bg-white/60 rounded-xl border border-medical-border px-3 py-2 text-sm text-medical-text-secondary outline-none cursor-pointer focus:border-medical-primary transition-colors">
-                <option>全部类型</option>
-                <option>AI 智能问诊</option>
-                <option>健康咨询</option>
-                <option>检查报告</option>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                aria-label="按类型筛选"
+                className="bg-white/60 rounded-xl border border-medical-border px-3 py-2 text-sm text-medical-text-secondary outline-none cursor-pointer focus:border-medical-primary transition-colors"
+              >
+                <option value="all">全部类型</option>
+                <option value="AI 智能问诊">AI 智能问诊</option>
+                <option value="健康咨询">健康咨询</option>
+                <option value="检查报告">检查报告</option>
               </select>
-              <select className="bg-white/60 rounded-xl border border-medical-border px-3 py-2 text-sm text-medical-text-secondary outline-none cursor-pointer focus:border-medical-primary transition-colors">
-                <option>全部时间</option>
-                <option>最近一个月</option>
-                <option>最近三个月</option>
-                <option>最近一年</option>
+              <select
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value as TimeFilter)}
+                aria-label="按时间筛选"
+                className="bg-white/60 rounded-xl border border-medical-border px-3 py-2 text-sm text-medical-text-secondary outline-none cursor-pointer focus:border-medical-primary transition-colors"
+              >
+                <option value="all">全部时间</option>
+                <option value="1m">最近一个月</option>
+                <option value="3m">最近三个月</option>
+                <option value="1y">最近一年</option>
               </select>
             </div>
           </div>
 
           <div className="space-y-3">
-            {recentRecords.length > 0 ? (
-              recentRecords.map((record, index) => (
+            {visibleRecords.length > 0 ? (
+              visibleRecords.map((record, index) => (
                 <motion.div
                   key={record.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 + index * 0.1 }}
+                  className="glass-card rounded-2xl p-5"
                 >
-                  <Link
-                    href={`/summary?session_id=${record.id}`}
-                    className="block glass-card rounded-2xl p-5 hover:shadow-medical-md hover:border-medical-primary/30 transition-all group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-medical-primary-light flex items-center justify-center">
-                          <FileText className="w-6 h-6 text-medical-primary" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-3 mb-1">
-                            <span className="font-semibold text-medical-text-primary">
-                              {record.type}
-                            </span>
-                            <Badge variant={record.status === "completed" ? "success" : "warning"}>
-                              {record.status === "completed" ? "已完成" : "进行中"}
-                            </Badge>
-                            <span className="text-xs text-medical-text-muted">
-                              {record.department}
-                            </span>
-                          </div>
-                          <p className="text-sm text-medical-text-secondary">{record.summary}</p>
-                          <p className="text-xs text-medical-text-muted mt-1">
-                            医生：{record.doctor}
-                          </p>
-                        </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-medical-primary-light flex items-center justify-center">
+                        <FileText className="w-6 h-6 text-medical-primary" />
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5 text-xs text-medical-text-muted">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {record.date}
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="font-semibold text-medical-text-primary">
+                            {record.type}
+                          </span>
+                          <Badge variant={record.status === "completed" ? "success" : "warning"}>
+                            {record.status === "completed" ? "已完成" : "进行中"}
+                          </Badge>
+                          <span className="text-xs text-medical-text-muted">
+                            {record.department}
+                          </span>
                         </div>
-                        <ArrowRight className="w-5 h-5 text-medical-text-muted group-hover:text-medical-primary transition-colors" />
+                        <p className="text-sm text-medical-text-secondary">{record.summary}</p>
+                        <p className="text-xs text-medical-text-muted mt-1">
+                          医生：{record.doctor}
+                        </p>
                       </div>
                     </div>
-                  </Link>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5 text-xs text-medical-text-muted">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {record.date}
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
               ))
             ) : (

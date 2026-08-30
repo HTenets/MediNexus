@@ -23,6 +23,18 @@ class Settings(BaseSettings):
     demo_mode: bool = True
     allowed_origins: str = "*"
 
+    # Embeddings for the Qdrant vector route. When unusable, retrieval falls
+    # back to BM25 (which needs no external service).
+    embedding_provider: str = "auto"  # auto | ollama | openai | deepseek | moonshot | none
+    embedding_model: str = ""
+    embedding_base_url: str = ""
+    embedding_api_key: str = ""
+    embedding_dim: int = 0
+
+    # Render agent manifests into patient-friendly prose using the LLM's real
+    # streaming API. Costs one extra LLM call per stage.
+    stream_narrative: bool = True
+
     model_config = {"env_file": ".env", "env_prefix": "MEDINEXUS_"}
 
 

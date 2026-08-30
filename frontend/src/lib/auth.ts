@@ -46,6 +46,43 @@ export function login(email: string, password: string, role: 'patient' | 'doctor
   });
 }
 
+export function register(
+  email: string,
+  password: string,
+  name: string,
+  role: 'patient' | 'doctor'
+): Promise<{ token: string; user: User }> {
+  return new Promise((resolve, reject) => {
+    fetch(`${BASE_PATH}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, name, role }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          let errorBody: Partial<{ detail: string; message: string }> = {};
+          try {
+            errorBody = await response.json();
+          } catch {
+            // ignore JSON parsing error
+          }
+          reject(new Error(errorBody.detail || errorBody.message || `注册失败: ${response.status}`));
+          return;
+        }
+        const data = await response.json() as LoginResponse;
+        setToken(data.access_token);
+        setRefreshToken(data.refresh_token);
+        setUser(data.user);
+        resolve({ token: data.access_token, user: data.user });
+      })
+      .catch((error) => {
+        reject(new Error(error.message || '网络错误'));
+      });
+  });
+}
+
 export function logout(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('refresh_token');

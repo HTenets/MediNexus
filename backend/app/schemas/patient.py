@@ -37,6 +37,9 @@ class PatientResponse(BaseModel):
     created_at: str = ""
     last_visit: str | None = None
     status: str = "active"
+    #: None for seeded demo patients visible to everyone; set for records the
+    #: current user created (lets the UI tell "mine" from "sample data").
+    owner_id: str | None = None
 
 
 class PatientListResponse(BaseModel):

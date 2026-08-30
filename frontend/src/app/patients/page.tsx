@@ -475,9 +475,9 @@ export default function PatientsPage() {
                       <Eye className="w-4 h-4" />
                     </Link>
                     <Link
-                      href={`/summary?session_id=${patient.id}`}
+                      href={`/records?patient_id=${patient.id}`}
                       className="w-8 h-8 rounded-lg hover:bg-medical-primary-light flex items-center justify-center text-medical-text-muted hover:text-medical-primary transition-colors"
-                      title="查看报告"
+                      title="查看该患者的病历"
                     >
                       <FileText className="w-4 h-4" />
                     </Link>

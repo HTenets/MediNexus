@@ -33,4 +33,4 @@ dist/
 build/
 
 # 
-self_docs/*
+docs/self_docs/*
