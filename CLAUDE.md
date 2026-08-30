@@ -144,3 +144,12 @@ Tracks project state, decisions, and priorities across sessions. Located at `~/.
 | Modifying the pipeline | `DATA_FLOW.md` (data flow) + `DEPENDENCY_GRAPH.md` (impact analysis) |
 | Understanding priorities | `BUILD_STATUS.md` (what's done vs TODO) |
 | Making an architecture decision | `architecture-decisions.md` (existing ADRs) |
+
+## 部署注意：低配服务器内存优化（2核2G）
+
+本项目在阿里云 2核2G 实例部署时，**构建阶段极易因内存不足（OOM）卡死**，开发与部署务必注意：
+
+- **前端构建内存**：`infrastructure/docker/Dockerfile.frontend` 已将 `NODE_OPTIONS=--max-old-space-size` 限制为 `1024`（原为 2048，在 2G 机器上会 OOM）。调小此值前需先确认服务器已配置 swap，否则 Next.js 构建可能直接失败。
+- **运行时内存上限**：`docker-compose.yml` 已为所有服务设置 `mem_limit` / `memswap_limit`（适配 2G：postgres/backend/qdrant/frontend 各 512M，worker 384M，redis/nginx 各 128M）。**修改 `docker-compose.yml` 内存相关配置时，必须保证各服务上限之和不超过服务器物理内存 + swap**，否则运行时会 OOM。
+- **构建命令**：部署时**禁止** `docker-compose build --no-cache` 的并行全量构建；应串行构建（`build --no-parallel` 或逐个 `build <service>`），并在构建前 `down` + `prune` 释放内存。详细步骤见 `docs/deploy-aliyun.md` 第 10.4 节。
+- **升级服务器**：官方推荐配置为 4核8G（见 `docs/deploy-aliyun.md` 第 2.1 节）。2G 为最低可行配置，仅适合 demo。

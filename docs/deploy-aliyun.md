@@ -216,9 +216,12 @@ chown -R $(whoami):$(whoami) /opt/program/medinexus_deploy
 
 #### 步骤4：构建并启动服务
 
+> **低配服务器（2核2G）注意**：不要用 `build --no-cache`（每层重编、反复触发内存峰值），且**必须串行构建**，否则 frontend 的 Next.js 构建会与其他镜像同时抢内存导致 OOM 卡死。完整命令与前置步骤见 [10.4 节](#104-2核2g-低配服务器构建与运行专项优化)。
+
 ```bash
 cd /opt/program/medinexus_deploy/MediNexus
-docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build --no-cache
+# 串行构建（推荐），不追加 --no-cache
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build --no-parallel
 docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml up -d 
 ```
 
@@ -437,27 +440,30 @@ find $BACKUP_DIR -type f -mtime +7 -delete
 
 ### 10.1 Docker资源限制
 
-在 `docker-compose.yml` 中配置（适用于独立Docker Compose模式）：
+在 `docker-compose.yml` 中为每个服务配置。本项目默认按 **2核2G 低配服务器** 调优（已写入 `docker-compose.yml`）：
 
 ```yaml
-mem_limit: 2G
-mem_reservation: 512M
-cpus: '1.0'
+# 单个服务示例：硬上限 512M，允许额外 256M swap 兜底
+mem_limit: 512m
+memswap_limit: 768m
 ```
 
-**各服务默认资源限制**：
+> `memswap_limit` 必须为 `mem_limit` 之上（含 swap 的总上限），否则容器无法使用 swap。
+> 若服务器已配置 swap（强烈建议，见 10.4），容器在瞬时内存尖峰时不会被 OOM kill。
 
-| 服务 | 内存限制 | 内存预留 | CPU限制 |
-|------|---------|---------|--------|
-| postgres | 2G | 512M | - |
-| redis | 512M | 128M | - |
-| qdrant | 4G | 1G | - |
-| backend | 2G | 512M | - |
-| worker | 1G | 256M | - |
-| frontend | 512M | 128M | - |
-| nginx | - | - | - |
+**各服务默认资源限制（适配 2核2G）**：
 
-> **注意**：如果服务器内存小于8GB，建议减少Qdrant和后端的内存限制。
+| 服务 | mem_limit（硬上限） | memswap_limit（含swap上限） |
+|------|---------|---------|
+| postgres | 512M | 768M |
+| redis | 128M | 256M |
+| qdrant | 512M | 768M |
+| backend | 512M | 768M |
+| worker | 384M | 512M |
+| frontend | 512M | 1024M |
+| nginx | 128M | 256M |
+
+> **注意**：以上为 2核2G 默认配置。若服务器内存 ≥8GB，可自行上调（如 qdrant 调到 4G、backend 调到 2G）。调整时务必保证各服务 `mem_limit` 之和不超过「物理内存 + swap」，否则运行时会 OOM。
 
 ### 10.2 Nginx优化
 
@@ -489,6 +495,89 @@ proxy_read_timeout 120s;
 POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
 ```
 
+### 10.4 2核2G 低配服务器构建与运行专项优化
+
+在 2核2G 实例上，`docker-compose build`（尤其 frontend 的 Next.js 构建）极易因内存不足被 OOM kill，表现为**构建卡死或进程消失**。请按以下顺序操作，全部在服务器上执行。
+
+#### 1) 先配置 swap 给内存兜底（最关键）
+
+2G 实例默认通常无 swap，OOM 时直接杀进程。建一个 2G swap：
+
+```bash
+# 在服务器上执行
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+free -h   # 确认 Swap 行已显示 2.0Gi
+```
+
+#### 2) 降低前端构建内存上限（已写入 Dockerfile，无需手动改）
+
+`infrastructure/docker/Dockerfile.frontend` 已将 `NODE_OPTIONS` 限制为：
+
+```dockerfile
+ENV NODE_OPTIONS=--max-old-space-size=1024 --max-semi-space-size=32
+```
+
+> 原值 2048 在 2G 机器上等于让 Node 独占全部内存，必然 OOM。若已配置 swap，此值可上调到 1280~1536；未配置 swap 时保持 1024。
+
+#### 3) 串行构建，禁止并行全量构建
+
+`docker-compose build` 默认**并行**构建 backend/worker/frontend/nginx，内存峰值叠加必爆。改为串行：
+
+```bash
+cd /opt/program/medinexus_deploy/MediNexus
+
+# 方式A：compose 串行构建（推荐）
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build --no-parallel
+
+# 方式B：手动逐个构建（最稳妥，任何时刻只有一个构建在跑）
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build backend
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build worker
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build frontend
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build nginx
+```
+
+#### 4) 不要用 `--no-cache`
+
+`--no-cache` 强制每层重编，既慢又反复触发内存峰值。依赖没变时直接 build 复用缓存即可：
+
+```bash
+# 推荐（不用 --no-cache）
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build --no-parallel
+
+# 仅当依赖（pyproject.toml / package.json）确实变化时才加 --no-cache，且仍需串行
+```
+
+#### 5) 构建前先停掉残留容器、清理中间层
+
+若之前 `up` 过，残留容器会占用内存。构建前释放：
+
+```bash
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml down
+docker system prune -f   # 清掉无用中间层与悬空镜像，释放磁盘/内存压力
+```
+
+#### 6) （可选）关闭 BuildKit 进一步降内存
+
+新版 BuildKit 构建器内存占用更高，2G 机器可改用旧 builder：
+
+```bash
+DOCKER_BUILDKIT=0 docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build --no-parallel
+```
+
+#### 7) 启动服务
+
+构建成功后启动。运行时各服务已通过 `docker-compose.yml` 的 `mem_limit` 限制内存（见 10.1），不会被单个容器拖垮整机：
+
+```bash
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml up -d
+```
+
+> **结论**：2G 为最低可行配置，仅适合 demo。生产/稳定使用请按第 2.1 节升级到 4核8G 及以上。
+
 ## 11. 故障排查
 
 ### 11.1 常见问题
@@ -498,7 +587,7 @@ POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
 | 服务无法启动 | 端口被占用 | 检查端口占用：`netstat -tlnp` |
 | 数据库连接失败 | 密码错误 | 检查 `.env` 文件中的数据库密码 |
 | 前端无法访问API | CORS配置错误 | 检查 `MEDINEXUS_ALLOWED_ORIGINS` |
-| 内存不足 | 容器内存限制过低 | 增加内存限制或升级服务器配置 |
+| 内存不足 / 构建卡死 | 2G低配服务器 OOM（并行构建、无swap、--no-cache） | 见 [10.4 节](#104-2核2g-低配服务器构建与运行专项优化)：配 swap、串行构建、去 --no-cache；并确认 `Dockerfile.frontend` 的 `NODE_OPTIONS=--max-old-space-size=1024` |
 | 镜像构建失败 | 网络问题 | 配置Docker镜像加速器 |
 
 ### 11.2 查看详细日志

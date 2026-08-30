@@ -13,8 +13,10 @@ COPY frontend/ .
 ARG NEXT_PUBLIC_BASE_PATH=/programs/medinexus
 ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 
-# 限制 Node 构建堆内存，避免在低配服务器上与运行中容器抢内存导致 swap 卡死
-ENV NODE_OPTIONS=--max-old-space-size=2048
+# 限制 Node 构建堆内存，适配 2G 低配服务器（原 2048 在 2G 机器上会触发 OOM）。
+# max-old-space-size 设为 1024；max-semi-space-size 调小可降低单次 GC 内存峰值。
+# 若服务器已配置 swap（建议 2G+），此值可适当上调到 1280~1536。
+ENV NODE_OPTIONS=--max-old-space-size=1024 --max-semi-space-size=32
 # 关闭 Next.js 遥测，避免构建时发起外网请求
 ENV NEXT_TELEMETRY_DISABLED=1
 
