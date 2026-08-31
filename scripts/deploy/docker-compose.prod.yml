@@ -17,8 +17,10 @@ services:
     restart: unless-stopped
     networks:
       - medinexus-network
-    mem_limit: 2G
-    mem_reservation: 512M
+    # 低配(2核2G)适配：硬上限512M，允许256M swap兜底
+    mem_limit: 512m
+    memswap_limit: 768m
+    mem_reservation: 128M
 
   redis:
     image: redis:7-alpine
@@ -34,8 +36,9 @@ services:
     restart: unless-stopped
     networks:
       - medinexus-network
-    mem_limit: 512M
-    mem_reservation: 128M
+    mem_limit: 128m
+    memswap_limit: 256m
+    mem_reservation: 32M
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -46,8 +49,9 @@ services:
     restart: unless-stopped
     networks:
       - medinexus-network
-    mem_limit: 4G
-    mem_reservation: 1G
+    mem_limit: 512m
+    memswap_limit: 768m
+    mem_reservation: 128M
 
   backend:
     build:
@@ -73,8 +77,9 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    mem_limit: 2G
-    mem_reservation: 512M
+    mem_limit: 512m
+    memswap_limit: 768m
+    mem_reservation: 128M
 
   worker:
     build:
@@ -97,8 +102,9 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    mem_limit: 1G
-    mem_reservation: 256M
+    mem_limit: 384m
+    memswap_limit: 512m
+    mem_reservation: 96M
 
   frontend:
     build:
@@ -119,7 +125,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    mem_limit: 512M
+    mem_limit: 512m
+    memswap_limit: 1024m
     mem_reservation: 128M
 
   nginx:
@@ -143,6 +150,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    mem_limit: 128m
+    memswap_limit: 256m
 
 networks:
   medinexus-network:

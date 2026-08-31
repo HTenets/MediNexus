@@ -216,12 +216,12 @@ chown -R $(whoami):$(whoami) /opt/program/medinexus_deploy
 
 #### 步骤4：构建并启动服务
 
-> **低配服务器（2核2G）注意**：不要用 `build --no-cache`（每层重编、反复触发内存峰值），且**必须串行构建**，否则 frontend 的 Next.js 构建会与其他镜像同时抢内存导致 OOM 卡死。完整命令与前置步骤见 [10.4 节](#104-2核2g-低配服务器构建与运行专项优化)。
+> **低配服务器（2核2G）注意**：不要用 `build --no-cache`。构建必须串行——旧版 `docker-compose` 默认即串行（直接 `docker-compose build` 即可）；新版 `docker compose` 需加 `--no-parallel`。frontend 的 Next.js 构建若并行会与其他镜像抢内存导致 OOM 卡死。完整命令见 [10.4 节](#104-2核2g-低配服务器构建与运行专项优化)。
 
 ```bash
 cd /opt/program/medinexus_deploy/MediNexus
-# 串行构建（推荐），不追加 --no-cache
-docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build --no-parallel
+# 串行构建（旧版 docker-compose 直接这样即可；新版用 build --no-parallel），不要追加 --no-cache
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build
 docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml up -d 
 ```
 
@@ -525,15 +525,20 @@ ENV NODE_OPTIONS=--max-old-space-size=1024 --max-semi-space-size=32
 
 #### 3) 串行构建，禁止并行全量构建
 
-`docker-compose build` 默认**并行**构建 backend/worker/frontend/nginx，内存峰值叠加必爆。改为串行：
+> **版本差异**：新版 `docker compose`（v2 插件）的 `build` **默认并行**，需加 `--no-parallel`；
+> 旧版 `docker-compose`（Python v1）的 `build` **默认就是串行**，`--no-parallel` 不是合法参数（会报 `unknown flag: --no-parallel`）。
+> 先用 `docker-compose --version` 确认版本。本服务器当前为旧版，直接 `docker-compose build` 即为串行。
 
 ```bash
 cd /opt/program/medinexus_deploy/MediNexus
 
-# 方式A：compose 串行构建（推荐）
-docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build --no-parallel
+# 旧版 docker-compose（当前服务器）：直接 build 即串行，不要加 --no-parallel
+docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build
 
-# 方式B：手动逐个构建（最稳妥，任何时刻只有一个构建在跑）
+# 新版 docker compose（v2 插件）才用下面这行：
+# docker compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build --no-parallel
+
+# 手动逐个构建（任意版本都最稳妥，任意时刻只有一个构建在跑）：
 docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build backend
 docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build worker
 docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml build frontend
@@ -577,6 +582,19 @@ docker-compose -f /opt/program/medinexus_deploy/MediNexus/docker-compose.yml up 
 ```
 
 > **结论**：2G 为最低可行配置，仅适合 demo。生产/稳定使用请按第 2.1 节升级到 4核8G 及以上。
+
+#### 8) 若使用一键部署脚本 `deploy.sh`（方式二）
+
+`scripts/deploy/deploy.sh` 走的是另一套生产配置 `scripts/deploy/docker-compose.prod.yml`（新版 `docker compose` v2 插件）。该脚本的构建命令已改为 `build --no-parallel`（去掉了原 `--no-cache`），其 compose 文件的内存上限也已同步降为 2G 适配（与第 10.1 节表格一致）。直接用以下命令即可，无需手动关心并行问题：
+
+```bash
+# 在本地项目目录执行，仅构建并重启
+bash scripts/deploy/deploy.sh -b -r
+# 或完整流程（更新代码 + 构建 + 启动）
+bash scripts/deploy/deploy.sh -f
+```
+
+> 若服务器尚未配置 swap，仍建议先按第 1 步配置，再跑脚本。
 
 ## 11. 故障排查
 

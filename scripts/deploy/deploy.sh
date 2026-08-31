@@ -39,7 +39,7 @@ upload_code() {
 build_images() {
     echo ""
     echo "构建 Docker 镜像..."
-    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker compose --env-file $DEPLOY_DIR/scripts/deploy/.env.production -f $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml build --no-cache"
+    ssh root@47.80.10.180 "cd $DEPLOY_DIR && docker compose --env-file $DEPLOY_DIR/scripts/deploy/.env.production -f $DEPLOY_DIR/scripts/deploy/docker-compose.prod.yml build --no-parallel"
     echo ""
     echo "✅ 镜像构建完成！"
 }
